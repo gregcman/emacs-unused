@@ -1,6 +1,8 @@
 (defpackage :emacs-unused
   (:use :cl))
 (in-package :emacs-unused)
+(defun alphabetical-sort (list)
+  (sort list 'string<))
 
 (defparameter *path* (asdf:system-source-directory :emacs-unused))
 ;;generated via grepping .h and .c files for "#include <"
@@ -12,18 +14,17 @@
 	  (position #\> string)))
 
 (defparameter *include-data*
-  (sort 
+  (alphabetical-sort
    (remove-duplicates 
     (mapcar #'find-included
 	    (remove ""
 		    (split-sequence:split-sequence #\Newline
 						   (alexandria:read-file-into-string *includes*))
 		    :test 'string=))
-    :test 'string=)
-   'string<))
+    :test 'string=)))
 
-(defun print-includes ()
-  (dolist (item *include-data*)
+(defun print-list (&optional (data *include-data*))
+  (dolist (item data)
     (terpri)
     (princ item)))
 
@@ -112,6 +113,35 @@
 			    (t
 			     (reset-header-stack))))))))))))
 
+(defparameter *includes-h-alist*
+  (progn
+    (test56)
+    (alexandria:hash-table-alist *includes-h-hash*)))
+
+;;headers that may be in $EMACS_SRC_ROOT/src or $EMACS_SRC_ROOT/lib-src
+(defparameter *includes-h-in-emacs-source*
+  (alphabetical-sort
+   (mapcar #'first
+	   (remove-if #'uiop:absolute-pathname-p *includes-h-alist* :key 'car))))
+;;headers that are installed separately from emacs
+(defparameter *includes-h-in-system-libs*
+  (alphabetical-sort
+   (mapcar #'first
+	   (remove-if-not #'uiop:absolute-pathname-p *includes-h-alist* :key 'car))))
+
+;;compile system libs into a shared library?
+
+;;apparently many headers have the same file name, but not the same path. 
+(defun check-header-name-conflict ()
+  (= (print (length *includes-h-alist*))
+     (print (length (remove-duplicates (mapcar (lambda (item)
+						 (pathname-name (first item)))
+					       *includes-h-alist*)
+				       :test 'string=)))))
+
+;;get vacietis to parse all these headers?
+
+;;old dump by using grep, not clang -H
 #|
 X11/Intrinsic.h
 X11/Xlib.h
