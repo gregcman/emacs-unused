@@ -2,7 +2,9 @@
   :author "terminal625"
   :license "MIT"
   :description "emacs unused"
-  :depends-on ()
+  :depends-on (#:alexandria
+	       #:split-sequence
+	       #:uiop)
   :serial t
   :components 
   ((:file "headers")))
