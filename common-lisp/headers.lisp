@@ -3,6 +3,7 @@
 (in-package :emacs-unused)
 
 (defparameter *path* (asdf:system-source-directory :emacs-unused))
+;;generated via grepping .h and .c files for "#include <"
 (defparameter *includes* (merge-pathnames "includes.txt" *path*))
 
 (defun find-included (string)
@@ -27,16 +28,40 @@
     (princ item)))
 
 (defun test-output (&optional (include-name "stdbool.h"))
+  ;;ripped from https://stackoverflow.com/questions/13079650/how-can-i-find-the-header-files-of-the-c-programming-language-in-linux
   (let ((command-string
 	 (format nil "echo '#include <~A>' | cpp -H -o /dev/null 2>&1 | head -n1" include-name)))
-    (with-output-to-string (var)
-      (uiop:run-program command-string :output var))))
+    (chop-trailing
+     (with-output-to-string (var)
+       (uiop:run-program command-string :output var)))))
+(defun chop-trailing (string)
+  "bash returns output with extra newline. chop it off"
+  (subseq string 0 (1- (length string))))
 
 (defun test69 ()
   (mapc
    (lambda (x)
      (print (test-output x)))
-   *include-data*))
+   *include-data*)
+  (values))
+
+;;./configure --without-all --without-x CC=clang CFLAGS=-H ;;emacs by default has
+;;;optimizations [-O2] turned on and debugging [-g and -g3] ;;-H means print the headers used
+
+;;make &> compile.txt ;;the &> pipes all output including errors to compile.txt. > won't
+
+(defparameter *includes-h* (merge-pathnames "compile.txt" *path*))
+(defun test56 ()
+  (let ((eof (list "eof")))
+    (block out
+      (with-open-file (stream *includes-h*)
+	(loop
+	   (let ((value 
+		  (read-line stream nil eof)))
+	     (cond ((eq eof value)
+		    (return-from out))
+		   (t
+		    (print value)))))))))
 
 #|
 X11/Intrinsic.h
