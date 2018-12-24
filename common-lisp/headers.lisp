@@ -53,7 +53,14 @@
 (defparameter *includes-h* (merge-pathnames "compile.txt" *path*))
 ;;header files in *includes-h* start on a line which begins with #\.
 (defun header-line-p (string)
-  (char= #\. (aref string 0)))
+  (let ((end? (position #\Space string)))
+    (when (or (not end?)
+	      (zerop end?))
+      (return-from header-line-p nil))
+    (dotimes (i end?)
+      (unless (char= #\. (aref string i))
+	(return-from header-line-p nil))))
+  t)
 
 ;;.... /usr/include/x86_64-linux-gnu/bits/libc-header-start.h
 ;;4, "/usr/include/x86_64-linux-gnu/bits/libc-header-start.h"
@@ -63,6 +70,7 @@
     (values (length (subseq string 0 spacepos))
 	    (subseq string (+ 1 spacepos) (length string)))))
 (defparameter *includes-h-hash* (make-hash-table :test 'equal))
+(defparameter *total-scanned* 0)
 (defun test56 ()
   (declare (optimize (debug 3)))
   (let ((eof (list "eof"))
@@ -70,6 +78,7 @@
     (flet ((reset-header-stack ()
 	     (setf header-stack (list (list 0 "root element")))))
       (reset-header-stack)
+      (setf *total-scanned* 0)
       (block out
 	(with-open-file (stream *includes-h*)
 	  (loop
@@ -79,6 +88,7 @@
 		      (return-from out))
 		     (t
 		      (cond ((header-line-p value)
+			     (incf *total-scanned*)
 			     (multiple-value-bind (depth path) (chop2 value)
 			       (unless (gethash path *includes-h-hash*)
 				 ;;push an empty list to start a header
