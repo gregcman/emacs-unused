@@ -51,17 +51,56 @@
 ;;make &> compile.txt ;;the &> pipes all output including errors to compile.txt. > won't
 
 (defparameter *includes-h* (merge-pathnames "compile.txt" *path*))
+;;header files in *includes-h* start on a line which begins with #\.
+(defun header-line-p (string)
+  (char= #\. (aref string 0)))
+
+;;.... /usr/include/x86_64-linux-gnu/bits/libc-header-start.h
+;;4, "/usr/include/x86_64-linux-gnu/bits/libc-header-start.h"
+(defun chop2 (&optional (string ".... /usr/include/x86_64-linux-gnu/bits/libc-header-start.h"))
+  (let ((spacepos
+	 (position #\Space string)))
+    (values (length (subseq string 0 spacepos))
+	    (subseq string (+ 1 spacepos) (length string)))))
+(defparameter *includes-h-hash* (make-hash-table :test 'equal))
 (defun test56 ()
-  (let ((eof (list "eof")))
-    (block out
-      (with-open-file (stream *includes-h*)
-	(loop
-	   (let ((value 
-		  (read-line stream nil eof)))
-	     (cond ((eq eof value)
-		    (return-from out))
-		   (t
-		    (print value)))))))))
+  (declare (optimize (debug 3)))
+  (let ((eof (list "eof"))
+	header-stack)
+    (flet ((reset-header-stack ()
+	     (setf header-stack (list (list 0 "root element")))))
+      (reset-header-stack)
+      (block out
+	(with-open-file (stream *includes-h*)
+	  (loop
+	     (let ((value 
+		    (read-line stream nil eof)))
+	       (cond ((eq eof value)
+		      (return-from out))
+		     (t
+		      (cond ((header-line-p value)
+			     (multiple-value-bind (depth path) (chop2 value)
+			       (unless (gethash path *includes-h-hash*)
+				 ;;push an empty list to start a header
+				 (setf (gethash path *includes-h-hash*) nil))
+			       (destructuring-bind (last-depth last-path) (first header-stack)
+				 (cond ((> depth last-depth) ;;child of last element
+					;;push it as a child
+					(pushnew path (gethash last-path *includes-h-hash*)
+						 :test 'string=
+						 ))
+				       (t ;;pop header stack until top is less than depth
+					(block cya
+					  (loop
+					     (destructuring-bind (top-depth top-path)
+						 (first header-stack)
+					       (declare (ignorable top-path))
+					       (if (> depth top-depth)
+						   (return-from cya)
+						   (pop header-stack))))))))
+			       (push (list depth path) header-stack)))
+			    (t
+			     (reset-header-stack))))))))))))
 
 #|
 X11/Intrinsic.h
