@@ -4,7 +4,8 @@
   :description "processed c parser"
   :depends-on (#:alexandria
 	       #:split-sequence
-	       #:uiop)
+	       #:uiop
+	       #:esrap-liquid)
   :serial t
   :components 
   ((:file "c-parse")))
