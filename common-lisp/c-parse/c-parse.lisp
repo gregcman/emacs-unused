@@ -49,11 +49,11 @@
      ;;patterns, called rules
      (subseq lex (+ 1 first-end) second-end))))
 ;;http://dinosaur.compilertools.net/lex/index.html <- detailed explanation of lex file format
-(defparameter *lex-strings* nil)
-(defparameter *lex-patterns* nil)
+(defparameter *lex-definitions-lines* nil)
+(defparameter *lex-rules-lines* nil)
 (defun split-lex2 (&optional (lex *lex-txt2*))
-  (setf (values *lex-strings*
-		*lex-patterns*)
+  (setf (values *lex-definitions-lines*
+		*lex-rules-lines*)
 	(split-lex lex)))
 
 (define-esrap-env c-parse)
@@ -507,20 +507,65 @@
 ;;lex-character-class ->  [! with character] characters, || character-ranges
 ;;references -> references to other rules
 
+(defparameter *v-wrap-necessary* t)
+(defmacro with-v-wrap-off (&body body)
+  `(let ((*v-wrap-necessary* nil))
+     ,@body))
+(defun lex-rule-dump-wrap (arg)
+  (with-v-wrap-off
+    (lex-rule-dump arg)))
 (defgeneric lex-rule-dump (node))
 ;;sequencing
 (defmethod lex-rule-dump ((node lex-rule))
-  `(list-v ,@(mapcar 'lex-rule-dump (lex-rule-data node))))
+  (let ((items
+	 (mapcar 'lex-rule-dump-wrap (lex-rule-data node))))
+    ;;optimization, deletable
+    (when (= 1 (length items))
+      (return-from lex-rule-dump (first items)))
+    
+    `(list-v ,@items)))
 (defmethod lex-rule-dump ((node lex-rule-or))
-  `(|| ,(lex-rule-dump (lex-rule-or-first node))
-       ,(lex-rule-dump (lex-rule-or-second node))))
+  (let ((form `(|| ,(lex-rule-dump-wrap (lex-rule-or-first node))
+		   ,(lex-rule-dump-wrap (lex-rule-or-second node)))))
+    ;;for flattening ||'s
+    (let ((acc nil))
+      (labels ((rec (form)
+		 (if (and (consp form)
+			  (eq '|| (first form)))
+		     (dolist (item (cdr form))
+		       (rec item))
+		     (push form acc))))
+	(rec form))
+      (setf acc (nreverse acc))
+      (return-from lex-rule-dump `(|| ,@acc)))
+    
+    ;;form
+    ))
 (defmethod lex-rule-dump ((node lex-rule-repeat))
-  `(times ,(lex-rule-dump (lex-rule-repeat-rule node))
-	  :from ,(lex-rule-repeat-min node)
-	  ,@(let ((max (lex-rule-repeat-max node)))
-	      (if (eql max *lex-rule-repeat-infinity*)
+  (let ((min (lex-rule-repeat-min node))
+	(max (lex-rule-repeat-max node))
+	(subexpr (lex-rule-dump-wrap (lex-rule-repeat-rule node))))
+    ;;optimization
+    (flet ((end (n)
+	     (return-from lex-rule-dump n)))
+      (cond
+	((eql min max)
+	 (case (utility:any min max)
+	   (0 (end nil))
+	   (1 (end subexpr)) ;;repeat exactly one time, repetition uneccessary
+	   ))
+	((and (eql min 0)
+	      (eql max 1))
+	 (end `(? ,subexpr)))
+	((and (eql min 1)
+	      (eql max *lex-rule-repeat-infinity*))
+	 (end `(postimes ,subexpr)))))
+    
+    `(times ,subexpr
+	    :from ,min
+	    ,@(if (eql max *lex-rule-repeat-infinity*)
 		  nil
-		  `(:upto max)))))
+		  `(:upto ,max)))))
 (defmethod lex-rule-dump ((node lex-character-class))
   (let ((chars (lex-character-class-chars node)))
     (let ((char-rules (remove-if-not 'characterp chars))
@@ -535,4 +580,18 @@
 		 `(progn
 		    (! ,rules-form)
 		    (v character)))
-		(t rules-form)))))))
+		(t
+		 ;;optimization
+		 (when (and (= 1 (length char-rules))
+			    (zerop (length range-rules)))
+		   (let ((char (first char-rules)))
+		     (return-from lex-rule-dump
+		       (if *v-wrap-necessary*
+			   `(v ,char)
+			   char))))
+		 rules-form)))))))
+(defparameter *some-symbols* (make-package "LEX-C-PARSE-SYMBOLS"))
+(defun find-lex-symbol (string)
+  (intern string *some-symbols*))
+(defmethod lex-rule-dump ((node lex-rule-reference))
+  `(v ,(find-lex-symbol (lex-rule-reference-string node))))

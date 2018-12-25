@@ -33,7 +33,7 @@
 (defun parse-with-garbage (rule text)
   (c-parse-parse rule text :junk-allowed t))
 
-(defun test-parse-rules (&optional (rules *lex-patterns*))
+(defun test-parse-rules (&optional (rules *lex-rules-lines*))
   (mapcar (lambda (text)
 	    (parse-with-garbage 'lex-rule-start text))
 	  rules))
@@ -69,7 +69,7 @@
 		    last-bracket)))))
 
 ;;run split-lex-2 to set the dynamic variables
-(defun test-lines (&optional (rule 'lex-rule-start) (rules *lex-patterns*))
+(defun test-lines (&optional (rule 'lex-rule-start) (rules *lex-rules-lines*))
   (let ((correct 0)
 	(wrong 0))
     (terpri)
@@ -106,7 +106,7 @@
 		      (mapcar
 		       (lambda (item)
 			 (parse-with-garbage 'lex-line-def item))
-		       *lex-strings*))))
+		       *lex-definitions-lines*))))
 
 ;;(string-a-prefix-b-p "a" "ab") -> T
 ;;(string-a-prefix-b-p "ac" "ab") -> 
@@ -126,8 +126,21 @@
 (defun setup ()
   (split-lex2)
   (values))
-
+(setup)
 (defun test-things (&optional not-pretty)
   (let ((*print-raw* not-pretty))
     (teststuff))
   (values))
+
+(defparameter *processed-definitions* (mapcar 'split-lex-line-def
+					      *lex-definitions-lines*))
+(defun load-processed-definitions ()
+  (mapcar
+   (lambda (item)
+     (destructuring-bind (name rule) item
+       (let ((form `(define-c-parse-rule ,(find-lex-symbol name) ()
+		      ,(lex-rule-dump rule))))
+	 form)))
+   *processed-definitions*))
+(defparameter *processed-rules* (mapcar 'split-lex-line-rule
+					*lex-rules-lines*))
