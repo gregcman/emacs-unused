@@ -542,7 +542,7 @@
 		       )))))
 	  rules)
     (format t "correct: ~a wrong: ~a~%" correct wrong)
-    (values)))
+    (list wrong correct)))
 
 (defun teststuff ()
   (test-lines)
@@ -605,4 +605,17 @@
 		  nil
 		  `(:upto max)))))
 (defmethod lex-rule-dump ((node lex-character-class))
-  )
+  (let ((chars (lex-character-class-chars node)))
+    (let ((char-rules (remove-if-not 'characterp chars))
+	  (range-rules
+	   (mapcar (lambda (range)
+		     `(,(lex-character-range-start range)
+		       ,(lex-character-range-end range)))
+		   (remove-if-not 'lex-character-range-p chars))))
+      (let ((rules (append range-rules char-rules)))
+	(let ((rules-form `(character-ranges ,@rules)))
+	  (cond ((lex-character-class-negated-p node)
+		 `(progn
+		    (! ,rules-form)
+		    (v character)))
+		(t rules-form)))))))
