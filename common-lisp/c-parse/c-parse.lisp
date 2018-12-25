@@ -153,7 +153,6 @@
     (if escaped-char
 	(format nil "\\~A" escaped-char)
 	(string char))))
-
 (defun char-to-escaped-char (char)
   "return a string representing the char as either just a char or an escape sequence"
   (let ((escaped-char 
@@ -219,8 +218,11 @@
 	(write-char #\^ stream))
       (dolist (item (lex-character-class-chars object))
 	(etypecase item
-	  (character (write-string (char-to-escaped-char item)
-				   stream))
+	  (character
+	   (case item
+	     (#\" (write-char #\" stream)) ;;FIXME -> clean up character escaping functions for different contexts, instead of checking here during printing.
+	     (otherwise (write-string (char-to-escaped-char item)
+				      stream))))
 	  (lex-character-range 
 	   (print-lex-character-range stream item))))
       (write-char #\] stream)))
@@ -419,3 +421,38 @@
   (mapcar (lambda (text)
 	    (parse-with-garbage 'lex-rule-start text))
 	  rules))
+
+(defun test-lines (&optional (rules *lex-patterns*))
+  (let ((correct 0)
+	(wrong 0))
+    (mapc (lambda (text)
+	    (let ((a (princ-to-string 
+		      (parse-with-garbage 'lex-rule-start text))))
+	      (cond ((string-a-prefix-b-p
+		      a
+		      text)
+		     (incf correct))
+		    (t
+		     (incf wrong)
+		     (write-string "DIFFERENT:")
+		     (terpri)
+		     (princ a)
+		     (terpri)
+		     (princ text)
+			(terpri)))))
+	  rules)
+    (format t "correct: ~a wrong: ~a" correct wrong)
+    (values)))
+
+;;(string-a-prefix-b-p "a" "ab") -> T
+;;(string-a-prefix-b-p "ac" "ab") -> 
+(defun string-a-prefix-b-p (a b)
+  "test whether string a is a prefix of b"
+  (when (> (length a)
+	   (length b))
+    (error "a is longer than b"))
+  (dotimes (index (length a))
+    (unless (char= (aref a index)
+		   (aref b index))
+      (return-from string-a-prefix-b-p nil)))
+  t)
