@@ -589,3 +589,20 @@
 ;;lex-rule-repeat repeat -> times
 ;;lex-character-class ->  [! with character] characters, || character-ranges
 ;;references -> references to other rules
+
+(defgeneric lex-rule-dump (node))
+;;sequencing
+(defmethod lex-rule-dump ((node lex-rule))
+  `(list-v ,@(mapcar 'lex-rule-dump (lex-rule-data node))))
+(defmethod lex-rule-dump ((node lex-rule-or))
+  `(|| ,(lex-rule-dump (lex-rule-or-first node))
+       ,(lex-rule-dump (lex-rule-or-second node))))
+(defmethod lex-rule-dump ((node lex-rule-repeat))
+  `(times ,(lex-rule-dump (lex-rule-repeat-rule node))
+	  :from ,(lex-rule-repeat-min node)
+	  ,@(let ((max (lex-rule-repeat-max node)))
+	      (if (eql max *lex-rule-repeat-infinity*)
+		  nil
+		  `(:upto max)))))
+(defmethod lex-rule-dump ((node lex-character-class))
+  )
