@@ -320,25 +320,6 @@
 
 (progn
   (struct-to-clos:struct->class
-   (defstruct lex-rule-or
-     first
-     second))
-  (defun print-lex-rule-or (stream object)
-    (;;with-write-parens (stream)
-     progn
-      (format stream "~a|~a"
-	      (lex-rule-or-first object)
-	      (lex-rule-or-second object))))
-  (set-pprint-dispatch 'lex-rule-or 'print-lex-rule-or))
-(define-c-parse-rule lex-rule-vertical-bar (rule)
-  (v #\|)
-  (cap :arg1 (v lex-rule-sequence))
-  (make-lex-rule-or
-   :first rule
-   :second (recap :arg1)))
-
-(progn
-  (struct-to-clos:struct->class
    (defstruct lex-rule-reference
      string))
   (defun print-lex-rule-reference (stream object)
@@ -461,31 +442,47 @@
 (define-c-parse-rule lex-rule-char ()
   (match-string (string (v lex-char-or-escaped-char)) t))
 
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-or))
+  (defun print-lex-rule-or (stream object)
+    (declare (ignorable object))
+    (format stream "|"))
+  (set-pprint-dispatch 'lex-rule-or 'print-lex-rule-or))
+(defparameter *bar-token* (make-lex-rule-or))
+(define-c-parse-rule lex-rule-vertical-bar ()
+  (v #\|)
+  *bar-token*)
+
+(define-c-parse-rule lex-atom (&optional (toplevel nil))
+  (when toplevel
+    (! whitespace))
+  (let ((rule
+	 (||
+	  lex-rule-char
+	  lex-rule-character-class
+	  lex-rule-string
+	  lex-rule-all-but-newline-rule
+	  lex-rule-parentheses
+	  lex-rule-definition)))
+	;;;
+    (block out
+      (loop
+	 (setf rule
+	       (|| (v lex-rule-? rule)
+		   (v lex-rule-* rule)
+		   (v lex-rule-+ rule)
+		   (v lex-rule-occurences rule)
+		   (return-from out rule)))))))
+
 (define-c-parse-rule lex-rule-sequence (&optional (toplevel nil))
   (make-lex-rule
    :data
-   (postimes
-    (progn
-      (when toplevel
-	(! whitespace))
-      (let ((rule
-	     (||
-	      lex-rule-char
-	      lex-rule-character-class
-	      lex-rule-string
-	      lex-rule-all-but-newline-rule
-	      lex-rule-parentheses
-	      lex-rule-definition)))
-	;;;
-	(block out
-	  (loop
-	     (setf rule
-		   (|| (v lex-rule-? rule)
-		       (v lex-rule-* rule)
-		       (v lex-rule-+ rule)
-		       (v lex-rule-vertical-bar rule)
-		       (v lex-rule-occurences rule)
-		       (return-from out rule))))))))))
+   (prog1 (list* (? (v lex-atom toplevel))
+		 (times
+		  (||
+		   lex-rule-vertical-bar
+		   (v lex-atom toplevel)))))))
 
 (define-c-parse-rule lex-rule-start ()
   (v lex-rule-sequence t))
@@ -507,40 +504,54 @@
 ;;lex-character-class ->  [! with character] characters, || character-ranges
 ;;references -> references to other rules
 
+;;;FIXME:: nasty hacks to dump esrap-liquid prettily
 (defparameter *v-wrap-necessary* t)
 (defmacro with-v-wrap-off (&body body)
   `(let ((*v-wrap-necessary* nil))
+     ,@body))
+(defmacro with-v-wrap-on (&body body)
+  `(let ((*v-wrap-necessary* t))
      ,@body))
 (defun lex-rule-dump-wrap (arg)
   (with-v-wrap-off
     (lex-rule-dump arg)))
 (defgeneric lex-rule-dump (node))
 ;;sequencing
+(defun divide-by-token (list token)
+  ;;(divide-by-token '(1 2 3 4 5 3234 234 3 4) 3) -> ((1 2) (4 5 3234 234) (4))
+  (let ((list-list ())
+	(current-list))
+    (flet ((save-current-list ()
+	     (push (nreverse current-list) list-list)))
+      (dolist (item list)
+	(if (eql token item)
+	    (progn (save-current-list)
+		   (setf current-list nil))
+	    (push item current-list)))
+      (save-current-list))
+    (nreverse list-list)))
 (defmethod lex-rule-dump ((node lex-rule))
-  (let ((items
-	 (mapcar 'lex-rule-dump-wrap (lex-rule-data node))))
-    ;;optimization, deletable
-    (when (= 1 (length items))
-      (return-from lex-rule-dump (first items)))
-    
-    `(list-v ,@items)))
-(defmethod lex-rule-dump ((node lex-rule-or))
-  (let ((form `(|| ,(lex-rule-dump-wrap (lex-rule-or-first node))
-		   ,(lex-rule-dump-wrap (lex-rule-or-second node)))))
-    ;;for flattening ||'s
-    (let ((acc nil))
-      (labels ((rec (form)
-		 (if (and (consp form)
-			  (eq '|| (first form)))
-		     (dolist (item (cdr form))
-		       (rec item))
-		     (push form acc))))
-	(rec form))
-      (setf acc (nreverse acc))
-      (return-from lex-rule-dump `(|| ,@acc)))
-    
-    ;;form
-    ))
+  ;;each lex rule's data is a list of sub atoms and bars denoting choice.
+  ;;divide by token divides the list of sub atoms by the bars
+  (let ((undumped (divide-by-token (lex-rule-data node) *bar-token*)))
+    (flet ((do-it ()
+	     (flet ((sub-or (list)
+		      
+		      (let ((items
+			     (mapcar 'lex-rule-dump list)))
+			;;optimization, deletable
+			(when (and ;;(not *v-wrap-necessary*)
+			       (= 1 (length items)))
+			  (return-from sub-or (first items)))  
+			`(list-v ,@items))))
+	       (let ((answer
+		      (mapcar #'sub-or undumped)))
+		 (case (length answer)
+		   (1 (first answer))
+		   (otherwise `(|| ,@answer)))))))
+      (case (length undumped)
+	(1 (with-v-wrap-on (do-it)))
+	(otherwise (with-v-wrap-off (do-it)))))))
 (defmethod lex-rule-dump ((node lex-rule-repeat))
   (let ((min (lex-rule-repeat-min node))
 	(max (lex-rule-repeat-max node))

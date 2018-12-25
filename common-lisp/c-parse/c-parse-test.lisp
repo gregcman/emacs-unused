@@ -134,13 +134,16 @@
 
 (defparameter *processed-definitions* (mapcar 'split-lex-line-def
 					      *lex-definitions-lines*))
+(defun pipeline (&optional (def "hello [90]"))
+  (compile-to-esrap-liquid (split-lex-line-def def)))
+(defun compile-to-esrap-liquid (item)
+  (destructuring-bind (name rule) item
+    (let ((form `(define-c-parse-rule ,(find-lex-symbol name) ()
+		   ,(lex-rule-dump rule))))
+      form)))
 (defun load-processed-definitions ()
   (mapcar
-   (lambda (item)
-     (destructuring-bind (name rule) item
-       (let ((form `(define-c-parse-rule ,(find-lex-symbol name) ()
-		      ,(lex-rule-dump rule))))
-	 form)))
+   'compile-to-esrap-liquid
    *processed-definitions*))
 (defparameter *processed-rules* (mapcar 'split-lex-line-rule
 					*lex-rules-lines*))
