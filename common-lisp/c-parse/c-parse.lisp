@@ -117,7 +117,11 @@
   (defparameter *lex-special-chars*
     '((#\t #\tab)
       (#\n #\Newline)
-      (#\b #\backspace))))
+      (#\b #\backspace)
+      (#\v #\vt)
+      (#\f #\formfeed) ;;FIXME - see below
+      (#\r #\return) ;;FIXME -> what chars are allowed?
+      )))
 
 (defun escaped-char-to-char (char)
   ;;Several normal C escapes with \ are recognized: \n is newline, \t is tab, and \b is backspace.
@@ -173,6 +177,7 @@
 	     `(case char
 		(#\\ #\\)
 		(#\] #\])
+		(#\? #\?) ;;FIXME::characters added here on a case by case basis?
 		,@(mapcar 'reverse *lex-special-chars*)
 		(otherwise nil)))))
       (escape escaped-char char))))
@@ -485,26 +490,29 @@
 	    (let* ((obj (parse-with-garbage rule text))
 		   (a (princ-to-string 
 		       obj)))
-	      (cond ((string-a-prefix-b-p
-		      a
-		      text)
-		     (incf correct))
-		    (t
-		     (incf wrong)
-		     (write-string "DIFFERENT:")
-		     (terpri)
-		     (princ a)
-		     (terpri)
-		     (princ text)
-		     (terpri)
-		     (inspect obj)))))
+	      (flet ((dump ()
+		       (terpri)
+		       (princ a)
+		       (terpri)
+		       (princ text)
+		       (terpri)))
+		(dump)
+		(cond ((string-a-prefix-b-p
+			a
+			text)
+		       (incf correct))
+		      (t
+		       (incf wrong)
+		       (write-string "~%DIFFERENT:")
+		       (dump)
+		       (inspect obj))))))
 	  rules)
-    (format t "correct: ~a wrong: ~a" correct wrong)
+    (format t "correct: ~a wrong: ~a~%" correct wrong)
     (values)))
 
 (defun teststuff ()
   (test-lines)
-  (test-lines 'lex-rule-start *lex-strings*))
+  (test-lines 'lex-rule-start *defs*))
 
 ;;(string-a-prefix-b-p "a" "ab") -> T
 ;;(string-a-prefix-b-p "ac" "ab") -> 
