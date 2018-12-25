@@ -72,10 +72,10 @@
   "coerce sequence into a string"
   (coerce seq 'string))
 
-(define-c-parse-rule lex-string ()
+(define-c-parse-rule lex-token-string ()
   (cap "what" (v lex-yacc-token))
   (v spaces+)
-  (list (stringify (recap "what"))))
+  (stringify (recap "what")))
 
 #+nil
 (progn ;;example parsing rule
@@ -101,16 +101,16 @@
 ;;[xy]     the character x or y.
 ;;[x-z]    the characters x, y or z.
 ;;[^x]     any character but x.
-;;.        any character but newline.
-;;^x       an x at the beginning of a line.
+;;.        any character but newline.                    
+;;^x       an x at the beginning of a line.                   ;;ignore
 ;;<y>x     an x when Lex is in start condition y.             ;;ignore
-;;x$       an x at the end of a line.
+;;x$       an x at the end of a line.                         ;;ignore
 ;;x?       an optional x.
 ;;x*       0,1,2, ... instances of x.
 ;;x+       1,2,3, ... instances of x.
 ;;x|y      an x or a y.
 ;;(x)      an x.
-;;x/y      an x but only if followed by y.
+;;x/y      an x but only if followed by y.                    ;;ignore
 ;;{xx}     the translation of xx from the definitions section.
 ;;x{m,n}   m through n occurrences of x
 
@@ -130,9 +130,9 @@
 
 (define-c-parse-rule lex-number ()
   (read-from-string (stringify
-		     (times 
+		     (postimes 
 		      (character-ranges
-		       (#\0 #\9)) :from 1))))
+		       (#\0 #\9))))))
 
 (define-c-parse-rule lex-char-or-escaped-char ()
   (|| lex-char
@@ -163,20 +163,20 @@
   (v character))
 
 (define-c-parse-rule lex-string ()
-  (v #\")
-  (cap :answer (stringify (times lex-char-or-escaped-char)))
-  (v #\")
-  (recap :answer))
+  (progm #\"
+	 (stringify (times lex-char-or-escaped-char))
+	 #\"))
 
-(struct-to-clos:struct->class
- (defstruct lex-character-range
-   start
-   end))
-(defun print-lex-character-range (stream object)
-  (format stream "~a-~a"
-	  (char-to-escaped-char (lex-character-range-start object))
-	  (char-to-escaped-char (lex-character-range-end object))))
-(set-pprint-dispatch 'lex-character-range 'print-lex-character-range)
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-character-range
+     start
+     end))
+  (defun print-lex-character-range (stream object)
+    (format stream "~a-~a"
+	    (char-to-escaped-char (lex-character-range-start object))
+	    (char-to-escaped-char (lex-character-range-end object))))
+  (set-pprint-dispatch 'lex-character-range 'print-lex-character-range))
 
 (define-c-parse-rule lex-character-range ()
   ;;http://dinosaur.compilertools.net/lex/index.html
@@ -188,22 +188,23 @@
    :start (recap :start)
    :end (recap :end)))
 
-(struct-to-clos:struct->class
- (defstruct lex-character-class
-   negated-p
-   chars))
-(defun print-lex-character-class (stream object)
-  (write-char #\[ stream)
-  (when (lex-character-class-negated-p object)
-    (write-char #\^ stream))
-  (dolist (item (lex-character-class-chars object))
-    (etypecase item
-      (character (write-string (char-to-escaped-char item)
-			       stream))
-      (lex-character-range 
-	      (print-lex-character-range stream item))))
-  (write-char #\] stream))
-(set-pprint-dispatch 'lex-character-class 'print-lex-character-class)
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-character-class
+     negated-p
+     chars))
+  (defun print-lex-character-class (stream object)
+    (write-char #\[ stream)
+    (when (lex-character-class-negated-p object)
+      (write-char #\^ stream))
+    (dolist (item (lex-character-class-chars object))
+      (etypecase item
+	(character (write-string (char-to-escaped-char item)
+				 stream))
+	(lex-character-range 
+	 (print-lex-character-range stream item))))
+    (write-char #\] stream))
+  (set-pprint-dispatch 'lex-character-class 'print-lex-character-class))
 
 (define-c-parse-rule lex-character-class ()
   ;;http://dinosaur.compilertools.net/lex/index.html
@@ -218,3 +219,117 @@
   (make-lex-character-class
    :negated-p (recap :negation)
    :chars (recap :chars)))
+(progn
+  (defparameter *lex-rule-repeat-infinity* :infinity
+    "signify that the rule should repeat forever")
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-repeat
+     rule
+     min
+     (max *lex-rule-repeat-infinity*)))
+  (defun print-lex-rule-repeat (stream object)
+    (write object :stream stream)
+    (let ((min (lex-rule-repeat-min object))
+	  (max (lex-rule-repeat-max object)))
+      (flet ((single-char (x)
+	       (write-char x stream)))
+	(cond ((and (= min 0)
+		    (= max 1))
+	       (single-char #\?))
+	      ((and (= min 0)
+		    (eql max *lex-rule-repeat-infinity*))
+	       (single-char #\*))
+	      ((and (= min 1)
+		    (eql max *lex-rule-repeat-infinity*))
+	       (single-char #\+))
+	      (t 
+	       (format stream "{~a,~a}" min max))))))
+  (set-pprint-dispatch 'lex-rule-repeat 'print-lex-rule-repeat))
+
+(define-c-parse-rule lex-rule-? ()
+  (cap :answer (v lex-rule))
+  (v #\?)
+  (make-lex-rule-repeat
+   :rule (recap :answer)
+   :min 0
+   :max 1))
+(define-c-parse-rule lex-rule-* ()
+  (cap :answer (v lex-rule))
+  (v #\*)
+  (make-lex-rule-repeat
+   :rule (recap :answer)
+   :min 0
+   :max *lex-rule-repeat-infinity*))
+(define-c-parse-rule lex-rule-+ ()
+  (cap :answer (v lex-rule))
+  (v #\+)
+  (make-lex-rule-repeat
+   :rule (recap :answer)
+   :min 1
+   :max *lex-rule-repeat-infinity*))
+
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-or
+     first
+     second))
+  (defun print-lex-rule-or (stream object)
+    (format stream "~a|~a"
+	    (lex-rule-or-first object)
+	    (lex-rule-or-second object)))
+  (set-pprint-dispatch 'lex-rule-or 'print-lex-rule-or))
+(define-c-parse-rule lex-rule-vertical-bar ()
+  (cap :arg0 (v lex-rule))
+  (v #\|)
+  (cap :arg1 (v lex-rule))
+  (make-lex-rule-or
+   :first (recap :arg0)
+   :second (recap :arg1)))
+
+(define-c-parse-rule lex-rule-parentheses ()
+  (progm #\(
+	 lex-rule
+	 #\)))
+
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-reference
+     string))
+  (defun print-lex-rule-reference (stream object)
+    ;;FIXME::what characters can tokens consist of? 
+    (format stream "{~a}"
+	    (lex-rule-reference-string object)))
+  (set-pprint-dispatch 'lex-rule-reference 'print-lex-rule-reference))
+
+(define-c-parse-rule lex-rule-definition ()
+  (make-lex-rule-reference
+   :string
+   (progm #\{
+	  lex-token-string
+	  #\})))
+(define-c-parse-rule lex-rule-occurences ()
+  (cap :rule (v lex-rule))
+  (v #\{)
+  (cap :min (v lex-number))
+  (v #\,)
+  (cap :max (v lex-number))
+  (v #\})
+  (make-lex-rule-repeat
+   :rule (recap :rule)
+   :min (recap :min)
+   :max (recap :max)))
+
+(define-c-parse-rule lex-rule ()
+  (postimes
+   (||
+    lex-char-or-escaped-char
+    lex-character-class
+    lex-string
+    (v #\.)
+    lex-rule-?
+    lex-rule*
+    lex-rule+
+    lex-rule-vertical-bar
+    lex-rule-parentheses
+    lex-rule-definition
+    lex-rule-occurences)))
