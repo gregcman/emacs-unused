@@ -63,9 +63,9 @@
     (#\a #\z)
     (#\A #\Z))))
 (define-c-parse-rule lex-yacc-token ()
-  (times lex-yacc-token-char :from 1))
+  (postimes lex-yacc-token-char))
 (define-c-parse-rule spaces+ ()
-  (length (times #\Space :from 1))
+  (length (postimes #\Space))
   nil)
 
 (defun stringify (seq)
@@ -146,4 +146,8 @@
   (! (utility:etouq `(|| ,@*lex-regex-operators*)))
   (v character))
 
-(define-c-parse-rule )
+(define-c-parse-rule lex-string ()
+  (v #\")
+  (cap :answer (stringify (times lex-char-or-escaped-char)))
+  (v #\")
+  (recap :answer))

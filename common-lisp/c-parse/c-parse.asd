@@ -6,7 +6,9 @@
 	       #:split-sequence
 	       #:uiop
 	       #:esrap-liquid
-	       #:utility)
+	       #:utility
+	       #:fiveam)
   :serial t
   :components 
-  ((:file "c-parse")))
+  ((:file "c-parse")
+   (:file "c-parse-test")))
