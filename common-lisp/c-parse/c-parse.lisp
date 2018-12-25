@@ -103,7 +103,7 @@
 ;;[^x]     any character but x.
 ;;.        any character but newline.
 ;;^x       an x at the beginning of a line.
-;;<y>x     an x when Lex is in start condition y.
+;;<y>x     an x when Lex is in start condition y.             ;;ignore
 ;;x$       an x at the end of a line.
 ;;x?       an optional x.
 ;;x*       0,1,2, ... instances of x.
@@ -113,5 +113,37 @@
 ;;x/y      an x but only if followed by y.
 ;;{xx}     the translation of xx from the definitions section.
 ;;x{m,n}   m through n occurrences of x
+
+;;| repeats the lex rule to the next listed rule
+
+(defun escaped-char-to-char (char)
+  ;;Several normal C escapes with \ are recognized: \n is newline, \t is tab, and \b is backspace.
+  (case char
+    (#\t #\tab)
+    (#\n #\Newline)
+    (#\b #\backspace)
+    (otherwise char)))
+
+(define-c-parse-rule lex-number ()
+  (read-from-string (stringify
+		     (times 
+		      (character-ranges
+		       (#\0 #\9)) :from 1))))
+
+(define-c-parse-rule lex-char-or-escaped-char ()
+  (|| lex-char
+      (progn (v #\\)
+	     (let ((char (v character)))
+	       (escaped-char-to-char char)))))
+(utility:eval-always
+  (defparameter *lex-regex-operators*
+    (coerce
+     "\"\\[]^-?.*+|()$/{}%<>"
+     'list)))
+
+(define-c-parse-rule lex-char ()
+  ;;" \ [ ] ^ - ? . * + | ( ) $ / { } % < > ;;operators that need to be escaped
+  (! (utility:etouq `(|| ,@*lex-regex-operators*)))
+  (v character))
 
 (define-c-parse-rule )

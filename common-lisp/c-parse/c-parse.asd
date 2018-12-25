@@ -5,7 +5,8 @@
   :depends-on (#:alexandria
 	       #:split-sequence
 	       #:uiop
-	       #:esrap-liquid)
+	       #:esrap-liquid
+	       #:utility)
   :serial t
   :components 
   ((:file "c-parse")))
