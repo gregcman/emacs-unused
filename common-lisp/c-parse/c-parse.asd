@@ -1,10 +1,10 @@
-(asdf:defsystem #:emacs-unused
+(asdf:defsystem #:c-parse
   :author "terminal625"
   :license "MIT"
-  :description "emacs unused"
+  :description "processed c parser"
   :depends-on (#:alexandria
 	       #:split-sequence
 	       #:uiop)
   :serial t
   :components 
-  ((:file "headers")))
+  ((:file "c-parse")))
