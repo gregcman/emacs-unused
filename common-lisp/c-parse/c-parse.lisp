@@ -226,7 +226,7 @@
   (struct-to-clos:struct->class
    (defstruct lex-character-class
      negated-p
-     chars))
+     (chars nil)))
   (defun print-lex-character-class (stream object)
     (;;with-write-parens (stream)
      progn
@@ -242,6 +242,8 @@
 	   (print-lex-character-range stream item))))
       (write-char #\] stream)))
   (set-pprint-dispatch 'lex-character-class 'print-lex-character-class))
+(defun set-character-class-char (obj &rest data)
+  (setf (lex-character-class-chars obj) data))
 
 (define-c-parse-rule lex-rule-character-class ()
   ;;http://dinosaur.compilertools.net/lex/index.html
@@ -322,7 +324,7 @@
   (set-pprint-dispatch 'lex-rule-or 'print-lex-rule-or))
 (define-c-parse-rule lex-rule-vertical-bar (rule)
   (v #\|)
-  (cap :arg1 (v lex-rule))
+  (cap :arg1 (v lex-rule-sequence))
   (make-lex-rule-or
    :first rule
    :second (recap :arg1)))
@@ -363,36 +365,47 @@
   (struct-to-clos:struct->class
    (defstruct lex-rule
      data
+     (print-as-dot nil)
      (with-parens nil)))
   (defun print-lex-rule (stream object)
     ;;FIXME::what characters can tokens consist of?
     (flet ((print-stuff ()
 	     (dolist (item (lex-rule-data object))
 	       (format stream "~a" item))))
-      (if (lex-rule-with-parens object)
-	  (with-write-parens (stream)
-	    (print-stuff))
-	  (print-stuff))))
+      (if (lex-rule-print-as-dot object)
+	  ;;FIXME::dots are converted into lex-rule sequences.
+	  ;;have separate special object for shortening?
+	  (write-char #\. stream) 
+	  (if (lex-rule-with-parens object)
+	      (with-write-parens (stream)
+		(print-stuff))
+	      (print-stuff)))))
   (set-pprint-dispatch 'lex-rule 'print-lex-rule))
 (define-c-parse-rule lex-rule-parentheses ()
-  (let ((lex-rule
+  (let ((lex-rule-sequence
 	 (progm #\(
-		lex-rule
+		lex-rule-sequence
 		#\))))
-    (setf (lex-rule-with-parens lex-rule) t)
-    lex-rule))
+    (setf (lex-rule-with-parens lex-rule-sequence) t)
+    lex-rule-sequence))
 
-(progn
-  (struct-to-clos:struct->class
-   (defstruct lex-rule-all-but-newline))
-  (defun print-lex-rule-all-but-newline (stream object)
-    ;;FIXME::what characters can tokens consist of?
-    (declare (ignorable object))
-    (write-char #\. stream))
-  (set-pprint-dispatch 'lex-rule-all-but-newline 'print-lex-rule-all-but-newline))
+
 (define-c-parse-rule lex-rule-all-but-newline-rule ()
   (v #\.)
-  (make-lex-rule-all-but-newline))
+  (let ((character-class
+	 (make-lex-character-class
+	  :negated-p t)))
+    (set-character-class-char
+     character-class
+     #\Newline)
+    (make-lex-rule
+     :print-as-dot t
+     :data
+     (list
+      (make-lex-rule-repeat
+       :rule character-class
+       :min 1
+       :max 1)))))
 
 ;;the string object covers both strings and individual characters
 (progn
@@ -403,16 +416,18 @@
   (defun print-lex-rule-string (stream object)
     ;;FIXME::what characters can tokens consist of?
     (declare (ignorable object))
-    (cond ((lex-rule-string-print-as-char-p object)
-	   (write-string (char-to-escaped-char (aref (lex-rule-string-data object) 0))
-			 stream))
-	  (t
-	   (write-char #\" stream)
-	   (let ((str (lex-rule-string-data object)))
-	     (dotimes (index (length str))
-	       (write-string (char-to-escaped-char-string (aref str index))
-			     stream)))
-	   (write-char #\" stream))))
+    (let ((str (lex-rule-string-data object)))
+      (cond ((and (= 1 (length str))
+		  (lex-rule-string-print-as-char-p object))
+	     (write-string (char-to-escaped-char (aref str 0))
+			   stream))
+	    (t
+	     (write-char #\" stream)
+	     (let ((str str))
+	       (dotimes (index (length str))
+		 (write-string (char-to-escaped-char-string (aref str index))
+			       stream)))
+	     (write-char #\" stream)))))
   (set-pprint-dispatch 'lex-rule-string 'print-lex-rule-string))
 (define-c-parse-rule lex-rule-string ()
   (make-lex-rule-string
@@ -424,7 +439,7 @@
    :data
    (string (v lex-char-or-escaped-char))))
 
-(define-c-parse-rule lex-rule (&optional (toplevel nil))
+(define-c-parse-rule lex-rule-sequence (&optional (toplevel nil))
   (make-lex-rule
    :data
    (postimes
@@ -451,7 +466,7 @@
 		       (return-from out rule))))))))))
 
 (define-c-parse-rule lex-rule-start ()
-  (v lex-rule t))
+  (v lex-rule-sequence t))
 
 (defun parse-with-garbage (rule text)
   (c-parse-parse rule text :junk-allowed t))
@@ -467,6 +482,7 @@
   ;;(cap :rule (v lex-rule-start))
   (stringify (postimes character)))
 
+;;need to evaluate this before testing
 (defparameter *defs*
   (mapcar
    (lambda (item)
