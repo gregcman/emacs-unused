@@ -115,14 +115,18 @@
 ;;x{m,n}   m through n occurrences of x
 
 ;;| repeats the lex rule to the next listed rule
+(utility:eval-always
+  (defparameter *lex-special-chars*
+    '((#\t #\tab)
+      (#\n #\Newline)
+      (#\b #\backspace))))
 
 (defun escaped-char-to-char (char)
   ;;Several normal C escapes with \ are recognized: \n is newline, \t is tab, and \b is backspace.
-  (case char
-    (#\t #\tab)
-    (#\n #\Newline)
-    (#\b #\backspace)
-    (otherwise char)))
+  (utility:etouq
+    `(case char
+       ,@*lex-special-chars*
+       (otherwise char))))
 
 (define-c-parse-rule lex-number ()
   (read-from-string (stringify
@@ -141,6 +145,18 @@
      "\"\\[]^-?.*+|()$/{}%<>"
      'list)))
 
+(defun char-to-escaped-char (char)
+  "return a string representing the char as either just a char or an escape sequence"
+  (let ((escaped-char 
+	 (utility:etouq
+	   `(case char
+	      ,@(mapcar 'reverse *lex-special-chars*)
+	      (,*lex-regex-operators* char)
+	      (otherwise nil)))))
+    (if escaped-char
+	(format nil "\\~A" escaped-char)
+	(string char))))
+
 (define-c-parse-rule lex-char ()
   ;;" \ [ ] ^ - ? . * + | ( ) $ / { } % < > ;;operators that need to be escaped
   (! (utility:etouq `(|| ,@*lex-regex-operators*)))
@@ -151,3 +167,42 @@
   (cap :answer (stringify (times lex-char-or-escaped-char)))
   (v #\")
   (recap :answer))
+
+(struct-to-clos:struct->class
+ (defstruct lex-character-range
+   start
+   end))
+(defun print-lex-character-range (stream object)
+  (format stream "[~a-~a]"
+	  (lex-character-range-start object)
+	  (lex-character-range-end object)))
+(set-pprint-dispatch 'lex-character-range 'print-lex-character-range)
+
+(define-c-parse-rule lex-character-range ()
+  ;;http://dinosaur.compilertools.net/lex/index.html
+  ;;The - character indicates ranges.
+  (cap :start (v lex-char-or-escaped-char))
+  (v #\-)
+  (cap :end (v lex-char-or-escaped-char))
+  (make-lex-character-range
+   :start (recap :start)
+   :end (recap :end)))
+
+(struct-to-clos:struct->class
+ (defstruct lex-character-class
+   negated-p
+   chars))
+
+(define-c-parse-rule lex-character-class ()
+  ;;http://dinosaur.compilertools.net/lex/index.html
+  ;;In character classes, the ^ operator must appear as the first character after the left bracket;
+  ;;it indicates that the resulting string is to be complemented with respect to the computer character set. Thus
+  (v #\[)
+  (cap :negation (? #\^))
+  (cap :chars
+       (times (|| lex-character-range
+		  lex-char-or-escaped-char)))
+  (v #\])
+  (make-lex-character-class
+   :negated-p (recap :negation)
+   :chars (recap :chars)))
