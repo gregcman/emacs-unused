@@ -38,20 +38,35 @@
 	    (parse-with-garbage 'lex-rule-start text))
 	  rules))
 
-(define-c-parse-rule lex-def ()
+(define-c-parse-rule lex-line-def ()
   (cap :def-name (v lex-token-string))
   (v whitespace)
   ;;(cap :rule (v lex-rule-start))
-  (stringify (postimes character)))
+  (list
+   (recap :def-name)
+   (stringify (postimes character))))
+(defun spec-lex-rule-rule (spec)
+  (second spec))
+(defun spec-lex-rule-name (spec)
+  (first spec))
 
-;;need to evaluate this before testing
-(defparameter *defs* nil)
-(defun set-deps ()
-  (setf *defs*
-	(mapcar
-	 (lambda (item)
-	   (parse-with-garbage 'lex-def item))
-	 *lex-strings*)))
+(define-c-parse-rule lex-line-rule ()
+  (prog1-v lex-rule-start
+	   whitespace))
+
+;;*defs* is a list of ("name" "rule")
+(defun split-lex-line-def (&optional (item "NS [a-zA-Z_]"))
+  (destructuring-bind (name rule-string) (parse-with-garbage 'lex-line-def item)
+    (list name (parse-with-garbage 'lex-rule-start rule-string))))
+
+(defun split-lex-line-rule (&optional (string "asd[a-zA-Z_]fasd   {return; /* */}"))
+  (multiple-value-bind (form end)
+      (parse-with-garbage 'lex-line-rule string)
+    ;;;FIXME::assumes that } terminates the line, which for this file does
+    (let ((last-bracket (position #\} string :from-end t)))
+      (list form
+	    (subseq string (1+ end)
+		    last-bracket)))))
 
 ;;run split-lex-2 to set the dynamic variables
 (defun test-lines (&optional (rule 'lex-rule-start) (rules *lex-patterns*))
@@ -86,7 +101,12 @@
 
 (defun teststuff ()
   (test-lines)
-  (test-lines 'lex-rule-start *defs*))
+  (test-lines 'lex-rule-start
+	      (mapcar 'spec-lex-rule-rule
+		      (mapcar
+		       (lambda (item)
+			 (parse-with-garbage 'lex-line-def item))
+		       *lex-strings*))))
 
 ;;(string-a-prefix-b-p "a" "ab") -> T
 ;;(string-a-prefix-b-p "ac" "ab") -> 
@@ -105,7 +125,6 @@
 
 (defun setup ()
   (split-lex2)
-  (set-deps)
   (values))
 
 (defun test-things (&optional not-pretty)
