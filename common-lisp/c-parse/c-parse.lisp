@@ -188,22 +188,29 @@
    :start (recap :start)
    :end (recap :end)))
 
+(defmacro with-write-parens ((stream) &body body)
+  `(prog2
+       (write-char #\( ,stream)
+       (progn ,@body)
+     (write-char #\) ,stream)))
+
 (progn
   (struct-to-clos:struct->class
    (defstruct lex-character-class
      negated-p
      chars))
   (defun print-lex-character-class (stream object)
-    (write-char #\[ stream)
-    (when (lex-character-class-negated-p object)
-      (write-char #\^ stream))
-    (dolist (item (lex-character-class-chars object))
-      (etypecase item
-	(character (write-string (char-to-escaped-char item)
-				 stream))
-	(lex-character-range 
-	 (print-lex-character-range stream item))))
-    (write-char #\] stream))
+    (with-write-parens (stream)
+      (write-char #\[ stream)
+      (when (lex-character-class-negated-p object)
+	(write-char #\^ stream))
+      (dolist (item (lex-character-class-chars object))
+	(etypecase item
+	  (character (write-string (char-to-escaped-char item)
+				   stream))
+	  (lex-character-range 
+	   (print-lex-character-range stream item))))
+      (write-char #\] stream)))
   (set-pprint-dispatch 'lex-character-class 'print-lex-character-class))
 
 (define-c-parse-rule lex-character-class ()
@@ -228,22 +235,23 @@
      min
      (max *lex-rule-repeat-infinity*)))
   (defun print-lex-rule-repeat (stream object)
-    (write object :stream stream)
-    (let ((min (lex-rule-repeat-min object))
-	  (max (lex-rule-repeat-max object)))
-      (flet ((single-char (x)
-	       (write-char x stream)))
-	(cond ((and (= min 0)
-		    (= max 1))
-	       (single-char #\?))
-	      ((and (= min 0)
-		    (eql max *lex-rule-repeat-infinity*))
-	       (single-char #\*))
-	      ((and (= min 1)
-		    (eql max *lex-rule-repeat-infinity*))
-	       (single-char #\+))
-	      (t 
-	       (format stream "{~a,~a}" min max))))))
+    (with-write-parens (stream)
+      (write object :stream stream)
+      (let ((min (lex-rule-repeat-min object))
+	    (max (lex-rule-repeat-max object)))
+	(flet ((single-char (x)
+		 (write-char x stream)))
+	  (cond ((and (= min 0)
+		      (= max 1))
+		 (single-char #\?))
+		((and (= min 0)
+		      (eql max *lex-rule-repeat-infinity*))
+		 (single-char #\*))
+		((and (= min 1)
+		      (eql max *lex-rule-repeat-infinity*))
+		 (single-char #\+))
+		(t 
+		 (format stream "{~a,~a}" min max)))))))
   (set-pprint-dispatch 'lex-rule-repeat 'print-lex-rule-repeat))
 
 (define-c-parse-rule lex-rule-? ()
@@ -274,9 +282,10 @@
      first
      second))
   (defun print-lex-rule-or (stream object)
-    (format stream "~a|~a"
-	    (lex-rule-or-first object)
-	    (lex-rule-or-second object)))
+    (with-write-parens (stream)
+      (format stream "~a|~a"
+	      (lex-rule-or-first object)
+	      (lex-rule-or-second object))))
   (set-pprint-dispatch 'lex-rule-or 'print-lex-rule-or))
 (define-c-parse-rule lex-rule-vertical-bar ()
   (cap :arg0 (v lex-rule))
@@ -296,9 +305,10 @@
    (defstruct lex-rule-reference
      string))
   (defun print-lex-rule-reference (stream object)
-    ;;FIXME::what characters can tokens consist of? 
-    (format stream "{~a}"
-	    (lex-rule-reference-string object)))
+    ;;FIXME::what characters can tokens consist of?
+    (with-write-parens (stream)
+      (format stream "{~a}"
+	      (lex-rule-reference-string object))))
   (set-pprint-dispatch 'lex-rule-reference 'print-lex-rule-reference))
 
 (define-c-parse-rule lex-rule-definition ()
