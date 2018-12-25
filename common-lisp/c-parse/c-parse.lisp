@@ -59,9 +59,9 @@
 (define-esrap-env c-parse)
 (define-c-parse-rule lex-yacc-token-char ()
   (|| #\_
-   (character-ranges
-    (#\a #\z)
-    (#\A #\Z))))
+      (character-ranges
+       (#\a #\z)
+       (#\A #\Z))))
 (define-c-parse-rule lex-yacc-token ()
   (postimes lex-yacc-token-char))
 (define-c-parse-rule spaces+ ()
@@ -138,6 +138,7 @@
 	     (let ((char (v character)))
 	       (escaped-char-to-char char)))))
 (utility:eval-always
+  ;;FIXME:misnomer. not a regular expression
   (defparameter *lex-regex-operators*
     (coerce
      "\"\\[]^-?.*+|()$/{}%<>"
@@ -244,9 +245,12 @@
   (v #\[)
   (cap :negation (? #\^))
   (cap :chars
-       (times (|| lex-character-range
-		  lex-char-or-escaped-char
-		  #\")))
+       ;;FIXME::what characters are allowed where?
+       (utility:etouq
+	 `(times (|| lex-character-range
+		     lex-char-or-escaped-char
+		     ,@(set-difference *lex-regex-operators*
+				       '(#\]))))))
   (v #\])
   (make-lex-character-class
    :negated-p (recap :negation)
@@ -364,7 +368,7 @@
    :max (recap :max)))
 
 (define-c-parse-rule whitespace ()
-  (|| #\Newline #\Space #\tab))
+  (postimes (|| #\Newline #\Space #\tab)))
 
 (progn
   (struct-to-clos:struct->class
@@ -439,12 +443,16 @@
 	      lex-rule-all-but-newline-rule
 	      lex-rule-parentheses
 	      lex-rule-definition)))
-	(|| (v lex-rule-? rule)
-	    (v lex-rule-* rule)
-	    (v lex-rule-+ rule)
-	    (v lex-rule-vertical-bar rule)
-	    (v lex-rule-occurences rule)
-	    (progn rule)))))))
+	;;;
+	(block out
+	  (loop
+	     (setf rule
+		   (|| (v lex-rule-? rule)
+		       (v lex-rule-* rule)
+		       (v lex-rule-+ rule)
+		       (v lex-rule-vertical-bar rule)
+		       (v lex-rule-occurences rule)
+		       (return-from out rule))))))))))
 
 (define-c-parse-rule lex-rule-start ()
   (v lex-rule t))
@@ -457,12 +465,24 @@
 	    (parse-with-garbage 'lex-rule-start text))
 	  rules))
 
+(define-c-parse-rule lex-def ()
+  (cap :def-name (v lex-token-string))
+  (v whitespace)
+  ;;(cap :rule (v lex-rule-start))
+  (stringify (postimes character)))
+
+(defparameter *defs*
+  (mapcar
+   (lambda (item)
+     (parse-with-garbage 'lex-def item))
+   *lex-strings*))
+
 ;;run split-lex-2 to set the dynamic variables
-(defun test-lines (&optional (rules *lex-patterns*))
+(defun test-lines (&optional (rule 'lex-rule-start) (rules *lex-patterns*))
   (let ((correct 0)
 	(wrong 0))
     (mapc (lambda (text)
-	    (let* ((obj (parse-with-garbage 'lex-rule-start text))
+	    (let* ((obj (parse-with-garbage rule text))
 		   (a (princ-to-string 
 		       obj)))
 	      (cond ((string-a-prefix-b-p
@@ -481,6 +501,10 @@
 	  rules)
     (format t "correct: ~a wrong: ~a" correct wrong)
     (values)))
+
+(defun teststuff ()
+  (test-lines)
+  (test-lines 'lex-rule-start *lex-strings*))
 
 ;;(string-a-prefix-b-p "a" "ab") -> T
 ;;(string-a-prefix-b-p "ac" "ab") -> 
