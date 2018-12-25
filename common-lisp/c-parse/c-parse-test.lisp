@@ -149,14 +149,23 @@
 (defparameter *processed-rules* (mapcar 'split-lex-line-rule
 					*lex-rules-lines*))
 
-(defparameter *foo*
-  `(||
-    ,@(mapcar (lambda (x)
-		`(progn ,(lex-rule-dump (first x))
-			,(second x)))
-	      *processed-rules*)))
+(defparameter *foo*)
+(defun bar ()
+  (let* ((iota (alexandria:iota (length *processed-rules*)))
+	 (syms (mapcar 'sym-name iota)))
+    `(progn
+       ,@(mapcar (lambda (name x)
+		   `(define-c-parse-rule ,name ,()
+		      (progn ,(lex-rule-dump (first x))
+			     ,(second x))))
+		 syms
+		 *processed-rules*)
+       (define-c-parse-rule lexer-foo ()
+	 (|| ,@syms)))))
+
+(defun sym-name (x)
+  (find-lex-symbol (format nil "LEX-GENERATED~a" x)))
 
 #+nil
 (utility::etouq
-  `(define-c-parse-rule lexer-foo ()
-     ,*foo*))
+  )
