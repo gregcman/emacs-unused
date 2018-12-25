@@ -399,39 +399,35 @@
   (v #\.)
   (make-lex-rule-all-but-newline))
 
+;;the string object covers both strings and individual characters
 (progn
   (struct-to-clos:struct->class
    (defstruct lex-rule-string
+     (print-as-char-p nil)
      data))
   (defun print-lex-rule-string (stream object)
     ;;FIXME::what characters can tokens consist of?
     (declare (ignorable object))
-    (write-char #\" stream)
-    (let ((str (lex-rule-string-data object)))
-      (dotimes (index (length str))
-	(write-string (char-to-escaped-char-string (aref str index))
-		      stream)))
-    (write-char #\" stream))
+    (cond ((lex-rule-string-print-as-char-p object)
+	   (write-string (char-to-escaped-char (aref (lex-rule-string-data object) 0))
+			 stream))
+	  (t
+	   (write-char #\" stream)
+	   (let ((str (lex-rule-string-data object)))
+	     (dotimes (index (length str))
+	       (write-string (char-to-escaped-char-string (aref str index))
+			     stream)))
+	   (write-char #\" stream))))
   (set-pprint-dispatch 'lex-rule-string 'print-lex-rule-string))
 (define-c-parse-rule lex-rule-string ()
   (make-lex-rule-string
    :data
    (v lex-string)))
-
-(progn
-  (struct-to-clos:struct->class
-   (defstruct lex-rule-char
-     data))
-  (defun print-lex-rule-char (stream object)
-    ;;FIXME::what characters can tokens consist of?
-    (declare (ignorable object))
-    (write-string (char-to-escaped-char (lex-rule-char-data object))
-		  stream))
-  (set-pprint-dispatch 'lex-rule-char 'print-lex-rule-char))
 (define-c-parse-rule lex-rule-char ()
-  (make-lex-rule-char
+  (make-lex-rule-string
+   :print-as-char-p t
    :data
-   (v lex-char-or-escaped-char)))
+   (string (v lex-char-or-escaped-char))))
 
 (define-c-parse-rule lex-rule (&optional (toplevel nil))
   (make-lex-rule
