@@ -143,6 +143,17 @@
      "\"\\[]^-?.*+|()$/{}%<>"
      'list)))
 
+(defun char-to-escaped-char-string (char)
+  "for printing strings in lex: return a string representing the char as either just a char or an escape sequence"
+  (let ((escaped-char 
+	 (utility:etouq
+	   `(case char
+	      ,@(mapcar 'reverse *lex-special-chars*)
+	      (otherwise nil)))))
+    (if escaped-char
+	(format nil "\\~A" escaped-char)
+	(string char))))
+
 (defun char-to-escaped-char (char)
   "return a string representing the char as either just a char or an escape sequence"
   (let ((escaped-char 
@@ -201,7 +212,8 @@
      negated-p
      chars))
   (defun print-lex-character-class (stream object)
-    (with-write-parens (stream)
+    (;;with-write-parens (stream)
+     progn
       (write-char #\[ stream)
       (when (lex-character-class-negated-p object)
 	(write-char #\^ stream))
@@ -222,7 +234,8 @@
   (cap :negation (? #\^))
   (cap :chars
        (times (|| lex-character-range
-		  lex-char-or-escaped-char)))
+		  lex-char-or-escaped-char
+		  #\")))
   (v #\])
   (make-lex-character-class
    :negated-p (recap :negation)
@@ -236,7 +249,8 @@
      min
      (max *lex-rule-repeat-infinity*)))
   (defun print-lex-rule-repeat (stream object)
-    (with-write-parens (stream)
+    (;;with-write-parens (stream)
+      progn
       (write (lex-rule-repeat-rule object) :stream stream)
       (let ((min (lex-rule-repeat-min object))
 	    (max (lex-rule-repeat-max object)))
@@ -280,7 +294,8 @@
      first
      second))
   (defun print-lex-rule-or (stream object)
-    (with-write-parens (stream)
+    (;;with-write-parens (stream)
+     progn
       (format stream "~a|~a"
 	      (lex-rule-or-first object)
 	      (lex-rule-or-second object))))
@@ -292,10 +307,21 @@
    :first rule
    :second (recap :arg1)))
 
+
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-parentheses
+     rule))
+  (defun print-lex-rule-parentheses (stream object)
+    (with-write-parens (stream)
+      (write (lex-rule-parentheses-rule object) :stream stream)))
+  (set-pprint-dispatch 'lex-rule-parentheses 'print-lex-rule-parentheses))
 (define-c-parse-rule lex-rule-parentheses ()
-  (progm #\(
-	 lex-rule
-	 #\)))
+  (make-lex-rule-parentheses
+   :rule
+   (progm #\(
+	  lex-rule
+	  #\))))
 
 (progn
   (struct-to-clos:struct->class
@@ -303,7 +329,8 @@
      string))
   (defun print-lex-rule-reference (stream object)
     ;;FIXME::what characters can tokens consist of?
-    (with-write-parens (stream)
+    (;;with-write-parens (stream)
+     progn
       (format stream "{~a}"
 	      (lex-rule-reference-string object))))
   (set-pprint-dispatch 'lex-rule-reference 'print-lex-rule-reference))
@@ -325,19 +352,70 @@
    :min (recap :min)
    :max (recap :max)))
 
-(define-c-parse-rule lex-rule ()
-  (postimes
-   (let ((rule (||
-		lex-char-or-escaped-char
-		lex-character-class
-		lex-string
-		(v #\.)
-		lex-rule-parentheses
-		lex-rule-definition)))
-     (print rule)
-     (print (|| (v lex-rule-? rule)
-		(v lex-rule-* rule)
-		(v lex-rule-+ rule)
-		(v lex-rule-vertical-bar rule)
-		(v lex-rule-occurences rule)
-		(progn rule))))))
+(define-c-parse-rule whitespace ()
+  (|| #\Newline #\Space #\tab))
+
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule
+     data))
+  (defun print-lex-rule (stream object)
+    ;;FIXME::what characters can tokens consist of?
+    (;;with-write-parens (stream)
+     progn
+      (dolist (item (lex-rule-data object))
+	(typecase item
+	  (character (write-string (char-to-escaped-char item)
+				   stream))
+	  (string
+	   (write-char #\" stream)
+	   (dotimes (index (length item))
+	     (write-string (char-to-escaped-char-string (aref item index))
+			   stream))
+	   (write-char #\" stream))
+	  (otherwise (format stream "~a" item))))))
+  (set-pprint-dispatch 'lex-rule 'print-lex-rule))
+
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-all-but-newline))
+  (defun print-lex-rule-all-but-newline (stream object)
+    ;;FIXME::what characters can tokens consist of?
+    (declare (ignorable object))
+    (write-char #\. stream))
+  (set-pprint-dispatch 'lex-rule-all-but-newline 'print-lex-rule-all-but-newline))
+(define-c-parse-rule lex-rule-all-but-newline-rule ()
+  (v #\.)
+  (make-lex-rule-all-but-newline))
+
+(define-c-parse-rule lex-rule (&optional (toplevel nil))
+  (make-lex-rule
+   :data
+   (postimes
+    (progn
+      (when toplevel
+	(! whitespace))
+      (let ((rule (||
+		   lex-char-or-escaped-char
+		   lex-character-class
+		   lex-string
+		   lex-rule-all-but-newline-rule
+		   lex-rule-parentheses
+		   lex-rule-definition)))
+	(|| (v lex-rule-? rule)
+	    (v lex-rule-* rule)
+	    (v lex-rule-+ rule)
+	    (v lex-rule-vertical-bar rule)
+	    (v lex-rule-occurences rule)
+	    (progn rule)))))))
+
+(define-c-parse-rule lex-rule-start ()
+  (v lex-rule t))
+
+(defun parse-with-garbage (rule text)
+  (c-parse-parse rule text :junk-allowed t))
+
+(defun test-parse-rules (&optional (rules *lex-patterns*))
+  (mapcar (lambda (text)
+	    (parse-with-garbage 'lex-rule-start text))
+	  rules))
