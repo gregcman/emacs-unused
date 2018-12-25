@@ -327,22 +327,6 @@
    :first rule
    :second (recap :arg1)))
 
-
-(progn
-  (struct-to-clos:struct->class
-   (defstruct lex-rule-parentheses
-     rule))
-  (defun print-lex-rule-parentheses (stream object)
-    (with-write-parens (stream)
-      (write (lex-rule-parentheses-rule object) :stream stream)))
-  (set-pprint-dispatch 'lex-rule-parentheses 'print-lex-rule-parentheses))
-(define-c-parse-rule lex-rule-parentheses ()
-  (make-lex-rule-parentheses
-   :rule
-   (progm #\(
-	  lex-rule
-	  #\))))
-
 (progn
   (struct-to-clos:struct->class
    (defstruct lex-rule-reference
@@ -378,14 +362,25 @@
 (progn
   (struct-to-clos:struct->class
    (defstruct lex-rule
-     data))
+     data
+     (with-parens nil)))
   (defun print-lex-rule (stream object)
     ;;FIXME::what characters can tokens consist of?
-    (;;with-write-parens (stream)
-     progn
-      (dolist (item (lex-rule-data object))
-	(format stream "~a" item))))
+    (flet ((print-stuff ()
+	     (dolist (item (lex-rule-data object))
+	       (format stream "~a" item))))
+      (if (lex-rule-with-parens object)
+	  (with-write-parens (stream)
+	    (print-stuff))
+	  (print-stuff))))
   (set-pprint-dispatch 'lex-rule 'print-lex-rule))
+(define-c-parse-rule lex-rule-parentheses ()
+  (let ((lex-rule
+	 (progm #\(
+		lex-rule
+		#\))))
+    (setf (lex-rule-with-parens lex-rule) t)
+    lex-rule))
 
 (progn
   (struct-to-clos:struct->class
@@ -522,3 +517,7 @@
 		   (aref b index))
       (return-from string-a-prefix-b-p nil)))
   t)
+
+;;character classes
+;;strings
+;;numerical repetition
