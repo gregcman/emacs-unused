@@ -519,5 +519,12 @@
   t)
 
 ;;character classes
-;;strings
+;;strings <- can be replaced by a special lex-rule with all character-classes of length 1
 ;;numerical repetition
+;;references
+;;sequencing
+;;options
+;;all-but-newline <- not necessary? a character class?
+
+;;"foo" -> [f]{1,1}[o]{1,1}[o]{1,1}
+;;. -> ([^\n]{1,1})
