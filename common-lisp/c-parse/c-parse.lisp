@@ -173,9 +173,9 @@
    start
    end))
 (defun print-lex-character-range (stream object)
-  (format stream "[~a-~a]"
-	  (lex-character-range-start object)
-	  (lex-character-range-end object)))
+  (format stream "~a-~a"
+	  (char-to-escaped-char (lex-character-range-start object))
+	  (char-to-escaped-char (lex-character-range-end object))))
 (set-pprint-dispatch 'lex-character-range 'print-lex-character-range)
 
 (define-c-parse-rule lex-character-range ()
@@ -192,6 +192,18 @@
  (defstruct lex-character-class
    negated-p
    chars))
+(defun print-lex-character-class (stream object)
+  (write-char #\[ stream)
+  (when (lex-character-class-negated-p object)
+    (write-char #\^ stream))
+  (dolist (item (lex-character-class-chars object))
+    (etypecase item
+      (character (write-string (char-to-escaped-char item)
+			       stream))
+      (lex-character-range 
+	      (print-lex-character-range stream item))))
+  (write-char #\] stream))
+(set-pprint-dispatch 'lex-character-class 'print-lex-character-class)
 
 (define-c-parse-rule lex-character-class ()
   ;;http://dinosaur.compilertools.net/lex/index.html
