@@ -8,6 +8,12 @@
 (defparameter *yacc-txt-path* (merge-pathnames "yacc.txt" *path*))
 (defparameter *lex-txt* (alexandria:read-file-into-string *lex-txt-path*))
 (defparameter *yacc-txt* (alexandria:read-file-into-string *yacc-txt-path*))
+(defun whitespace-string (str)
+  "return t if its all spaces or empty"
+  (dotimes (i (length str))
+    (unless (char= #\Space (aref str i))
+      (return-from whitespace-string nil)))
+  t)
 (defparameter *lex-txt2*
   (remove-if #'whitespace-string
 	     (split-sequence:split-sequence #\Newline *lex-txt*)))
@@ -20,12 +26,6 @@
     (terpri)
     (princ item)))
 
-(defun whitespace-string (str)
-  "return t if its all spaces or empty"
-  (dotimes (i (length str))
-    (unless (char= #\Space (aref str i))
-      (return-from whitespace-string nil)))
-  t)
 ;;https://docs.oracle.com/cd/E19504-01/802-5880/lex-6/index.html
 ;;The mandatory rules section opens with the delimiter %%.
 ;;If a routines section follows, another %% delimiter ends the rules section.
@@ -143,27 +143,38 @@
      "\"\\[]^-?.*+|()$/{}%<>"
      'list)))
 
-(defun char-to-escaped-char-string (char)
-  "for printing strings in lex: return a string representing the char as either just a char or an escape sequence"
-  (let ((escaped-char 
-	 (utility:etouq
-	   `(case char
-	      ,@(mapcar 'reverse *lex-special-chars*)
-	      (otherwise nil)))))
-    (if escaped-char
-	(format nil "\\~A" escaped-char)
-	(string char))))
-(defun char-to-escaped-char (char)
-  "return a string representing the char as either just a char or an escape sequence"
-  (let ((escaped-char 
-	 (utility:etouq
-	   `(case char
-	      ,@(mapcar 'reverse *lex-special-chars*)
-	      (,*lex-regex-operators* char)
-	      (otherwise nil)))))
-    (if escaped-char
-	(format nil "\\~A" escaped-char)
-	(string char))))
+(flet ((escape (escaped-char char)
+	 (if escaped-char
+	     (format nil "\\~A" escaped-char)
+	     (string char))))
+  ;;;;different contexts have different escape seqences 
+  (defun char-to-escaped-char-string (char)
+    ;;used in string rule
+    (let ((escaped-char 
+	   (utility:etouq
+	     `(case char
+		,@(mapcar 'reverse *lex-special-chars*)
+		(otherwise nil)))))
+      (escape escaped-char char)))
+  (defun char-to-escaped-char (char)
+    ;;used as expression
+    (let ((escaped-char 
+	   (utility:etouq
+	     `(case char
+		,@(mapcar 'reverse *lex-special-chars*)
+		(,*lex-regex-operators* char)
+		(otherwise nil)))))
+      (escape escaped-char char)))
+  (defun char-to-escaped-char-character-class (char)
+    ;;used in character class
+    (let ((escaped-char
+	   (utility::etouq
+	     `(case char
+		(#\\ #\\)
+		(#\] #\])
+		,@(mapcar 'reverse *lex-special-chars*)
+		(otherwise nil)))))
+      (escape escaped-char char))))
 
 (define-c-parse-rule lex-char ()
   ;;" \ [ ] ^ - ? . * + | ( ) $ / { } % < > ;;operators that need to be escaped
@@ -185,8 +196,8 @@
      end))
   (defun print-lex-character-range (stream object)
     (format stream "~a-~a"
-	    (char-to-escaped-char (lex-character-range-start object))
-	    (char-to-escaped-char (lex-character-range-end object))))
+	    (char-to-escaped-char-character-class (lex-character-range-start object))
+	    (char-to-escaped-char-character-class (lex-character-range-end object))))
   (set-pprint-dispatch 'lex-character-range 'print-lex-character-range))
 
 (define-c-parse-rule lex-character-range ()
@@ -219,16 +230,14 @@
       (dolist (item (lex-character-class-chars object))
 	(etypecase item
 	  (character
-	   (case item
-	     (#\" (write-char #\" stream)) ;;FIXME -> clean up character escaping functions for different contexts, instead of checking here during printing.
-	     (otherwise (write-string (char-to-escaped-char item)
-				      stream))))
+	   (write-string (char-to-escaped-char-character-class item)
+			 stream))
 	  (lex-character-range 
 	   (print-lex-character-range stream item))))
       (write-char #\] stream)))
   (set-pprint-dispatch 'lex-character-class 'print-lex-character-class))
 
-(define-c-parse-rule lex-character-class ()
+(define-c-parse-rule lex-rule-character-class ()
   ;;http://dinosaur.compilertools.net/lex/index.html
   ;;In character classes, the ^ operator must appear as the first character after the left bracket;
   ;;it indicates that the resulting string is to be complemented with respect to the computer character set. Thus
@@ -366,16 +375,7 @@
     (;;with-write-parens (stream)
      progn
       (dolist (item (lex-rule-data object))
-	(typecase item
-	  (character (write-string (char-to-escaped-char item)
-				   stream))
-	  (string
-	   (write-char #\" stream)
-	   (dotimes (index (length item))
-	     (write-string (char-to-escaped-char-string (aref item index))
-			   stream))
-	   (write-char #\" stream))
-	  (otherwise (format stream "~a" item))))))
+	(format stream "~a" item))))
   (set-pprint-dispatch 'lex-rule 'print-lex-rule))
 
 (progn
@@ -390,6 +390,40 @@
   (v #\.)
   (make-lex-rule-all-but-newline))
 
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-string
+     data))
+  (defun print-lex-rule-string (stream object)
+    ;;FIXME::what characters can tokens consist of?
+    (declare (ignorable object))
+    (write-char #\" stream)
+    (let ((str (lex-rule-string-data object)))
+      (dotimes (index (length str))
+	(write-string (char-to-escaped-char-string (aref str index))
+		      stream)))
+    (write-char #\" stream))
+  (set-pprint-dispatch 'lex-rule-string 'print-lex-rule-string))
+(define-c-parse-rule lex-rule-string ()
+  (make-lex-rule-string
+   :data
+   (v lex-string)))
+
+(progn
+  (struct-to-clos:struct->class
+   (defstruct lex-rule-char
+     data))
+  (defun print-lex-rule-char (stream object)
+    ;;FIXME::what characters can tokens consist of?
+    (declare (ignorable object))
+    (write-string (char-to-escaped-char (lex-rule-char-data object))
+		  stream))
+  (set-pprint-dispatch 'lex-rule-char 'print-lex-rule-char))
+(define-c-parse-rule lex-rule-char ()
+  (make-lex-rule-char
+   :data
+   (v lex-char-or-escaped-char)))
+
 (define-c-parse-rule lex-rule (&optional (toplevel nil))
   (make-lex-rule
    :data
@@ -397,13 +431,14 @@
     (progn
       (when toplevel
 	(! whitespace))
-      (let ((rule (||
-		   lex-char-or-escaped-char
-		   lex-character-class
-		   lex-string
-		   lex-rule-all-but-newline-rule
-		   lex-rule-parentheses
-		   lex-rule-definition)))
+      (let ((rule
+	     (||
+	      lex-rule-char
+	      lex-rule-character-class
+	      lex-rule-string
+	      lex-rule-all-but-newline-rule
+	      lex-rule-parentheses
+	      lex-rule-definition)))
 	(|| (v lex-rule-? rule)
 	    (v lex-rule-* rule)
 	    (v lex-rule-+ rule)
@@ -422,12 +457,14 @@
 	    (parse-with-garbage 'lex-rule-start text))
 	  rules))
 
+;;run split-lex-2 to set the dynamic variables
 (defun test-lines (&optional (rules *lex-patterns*))
   (let ((correct 0)
 	(wrong 0))
     (mapc (lambda (text)
-	    (let ((a (princ-to-string 
-		      (parse-with-garbage 'lex-rule-start text))))
+	    (let* ((obj (parse-with-garbage 'lex-rule-start text))
+		   (a (princ-to-string 
+		       obj)))
 	      (cond ((string-a-prefix-b-p
 		      a
 		      text)
@@ -439,7 +476,8 @@
 		     (princ a)
 		     (terpri)
 		     (princ text)
-			(terpri)))))
+		     (terpri)
+		     (inspect obj)))))
 	  rules)
     (format t "correct: ~a wrong: ~a" correct wrong)
     (values)))
