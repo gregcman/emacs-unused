@@ -73,9 +73,7 @@
   (coerce seq 'string))
 
 (define-c-parse-rule lex-token-string ()
-  (cap "what" (v lex-yacc-token))
-  (v spaces+)
-  (stringify (recap "what")))
+  (stringify (v lex-yacc-token)))
 
 #+nil
 (progn ;;example parsing rule
@@ -164,7 +162,10 @@
 
 (define-c-parse-rule lex-string ()
   (progm #\"
-	 (stringify (times lex-char-or-escaped-char))
+	 (stringify (utility:etouq
+		      `(times (|| lex-char-or-escaped-char
+				  (|| ,@(set-difference *lex-regex-operators*
+							'(#\" #\\)))))))
 	 #\"))
 
 (progn
@@ -254,25 +255,22 @@
 		 (format stream "{~a,~a}" min max)))))))
   (set-pprint-dispatch 'lex-rule-repeat 'print-lex-rule-repeat))
 
-(define-c-parse-rule lex-rule-? ()
-  (cap :answer (v lex-rule))
+(define-c-parse-rule lex-rule-? (rule)
   (v #\?)
   (make-lex-rule-repeat
-   :rule (recap :answer)
+   :rule rule
    :min 0
    :max 1))
-(define-c-parse-rule lex-rule-* ()
-  (cap :answer (v lex-rule))
+(define-c-parse-rule lex-rule-* (rule)
   (v #\*)
   (make-lex-rule-repeat
-   :rule (recap :answer)
+   :rule rule
    :min 0
    :max *lex-rule-repeat-infinity*))
-(define-c-parse-rule lex-rule-+ ()
-  (cap :answer (v lex-rule))
+(define-c-parse-rule lex-rule-+ (rule)
   (v #\+)
   (make-lex-rule-repeat
-   :rule (recap :answer)
+   :rule rule
    :min 1
    :max *lex-rule-repeat-infinity*))
 
@@ -287,12 +285,11 @@
 	      (lex-rule-or-first object)
 	      (lex-rule-or-second object))))
   (set-pprint-dispatch 'lex-rule-or 'print-lex-rule-or))
-(define-c-parse-rule lex-rule-vertical-bar ()
-  (cap :arg0 (v lex-rule))
+(define-c-parse-rule lex-rule-vertical-bar (rule)
   (v #\|)
   (cap :arg1 (v lex-rule))
   (make-lex-rule-or
-   :first (recap :arg0)
+   :first rule
    :second (recap :arg1)))
 
 (define-c-parse-rule lex-rule-parentheses ()
@@ -317,29 +314,30 @@
    (progm #\{
 	  lex-token-string
 	  #\})))
-(define-c-parse-rule lex-rule-occurences ()
-  (cap :rule (v lex-rule))
+(define-c-parse-rule lex-rule-occurences (rule)
   (v #\{)
   (cap :min (v lex-number))
   (v #\,)
   (cap :max (v lex-number))
   (v #\})
   (make-lex-rule-repeat
-   :rule (recap :rule)
+   :rule rule
    :min (recap :min)
    :max (recap :max)))
 
 (define-c-parse-rule lex-rule ()
   (postimes
-   (||
-    lex-char-or-escaped-char
-    lex-character-class
-    lex-string
-    (v #\.)
-    lex-rule-?
-    lex-rule*
-    lex-rule+
-    lex-rule-vertical-bar
-    lex-rule-parentheses
-    lex-rule-definition
-    lex-rule-occurences)))
+   (let ((rule (||
+		lex-char-or-escaped-char
+		lex-character-class
+		lex-string
+		(v #\.)
+		lex-rule-parentheses
+		lex-rule-definition)))
+     (print rule)
+     (print (|| (v lex-rule-? rule)
+		(v lex-rule-* rule)
+		(v lex-rule-+ rule)
+		(v lex-rule-vertical-bar rule)
+		(v lex-rule-occurences rule)
+		(progn rule))))))
