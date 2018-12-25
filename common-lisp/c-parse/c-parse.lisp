@@ -262,6 +262,8 @@
   (make-lex-character-class
    :negated-p (recap :negation)
    :chars (recap :chars)))
+(defparameter *print-raw* nil
+  "toggle printing lex-sequence as a dot or a string. ")
 (progn
   (defparameter *lex-rule-repeat-infinity* :infinity
     "signify that the rule should repeat forever")
@@ -278,14 +280,20 @@
 	    (max (lex-rule-repeat-max object)))
 	(flet ((single-char (x)
 		 (write-char x stream)))
-	  (cond ((and (eql min 0)
-		      (eql max 1))
+	  (cond ((and
+		  (not *print-raw*)
+		  (eql min 0)
+		  (eql max 1))
 		 (single-char #\?))
-		((and (eql min 0)
-		      (eql max *lex-rule-repeat-infinity*))
+		((and
+		  (not *print-raw*)
+		  (eql min 0)
+		  (eql max *lex-rule-repeat-infinity*))
 		 (single-char #\*))
-		((and (eql min 1)
-		      (eql max *lex-rule-repeat-infinity*))
+		((and
+		  (not *print-raw*)
+		  (eql min 1)
+		  (eql max *lex-rule-repeat-infinity*))
 		 (single-char #\+))
 		(t 
 		 (format stream "{~a,~a}" min max)))))))
@@ -360,26 +368,52 @@
 
 (define-c-parse-rule whitespace ()
   (postimes (|| #\Newline #\Space #\tab)))
-
 (progn
+  ;;FIXME::lex-rule, which handles sequences, is becoming dumping ground for
+  ;;irregular lex syntax like strings and the dot ->.
   (struct-to-clos:struct->class
    (defstruct lex-rule
      data
+     ;;dot
      (print-as-dot nil)
-     (with-parens nil)))
+     ;;characters
+     (with-parens nil)
+     ;;strings and chars
+     (string-print-as-char-p nil)
+     string-data
+     (string-p nil)))
   (defun print-lex-rule (stream object)
     ;;FIXME::what characters can tokens consist of?
     (flet ((print-stuff ()
 	     (dolist (item (lex-rule-data object))
 	       (format stream "~a" item))))
-      (if (lex-rule-print-as-dot object)
-	  ;;FIXME::dots are converted into lex-rule sequences.
-	  ;;have separate special object for shortening?
-	  (write-char #\. stream) 
-	  (if (lex-rule-with-parens object)
-	      (with-write-parens (stream)
-		(print-stuff))
-	      (print-stuff)))))
+      (cond (;;for the . operator
+	     (and (not *print-raw*)
+		  (lex-rule-print-as-dot object))
+	     ;;FIXME::dots are converted into lex-rule sequences.
+	     ;;have separate special object for shortening?
+	     (write-char #\. stream))
+	    (;; for strings and characters
+	     (and (not *print-raw*)
+		  (lex-rule-string-p object))
+	     (let ((str (lex-rule-string-data object)))
+	       (cond ((and (= 1 (length str))
+			   (lex-rule-string-print-as-char-p object))
+		      (write-string (char-to-escaped-char (aref str 0))
+				    stream))
+		     (t
+		      (write-char #\" stream)
+		      (let ((str str))
+			(dotimes (index (length str))
+			  (write-string (char-to-escaped-char-string (aref str index))
+					stream)))
+		      (write-char #\" stream)))))
+	    (;;if this was read with parentheses?
+	     t
+	     (if (lex-rule-with-parens object)
+		 (with-write-parens (stream)
+		   (print-stuff))
+		 (print-stuff))))))
   (set-pprint-dispatch 'lex-rule 'print-lex-rule))
 (define-c-parse-rule lex-rule-parentheses ()
   (let ((lex-rule-sequence
@@ -392,52 +426,40 @@
 
 (define-c-parse-rule lex-rule-all-but-newline-rule ()
   (v #\.)
-  (let ((character-class
-	 (make-lex-character-class
-	  :negated-p t)))
-    (set-character-class-char
-     character-class
-     #\Newline)
-    (make-lex-rule
-     :print-as-dot t
-     :data
-     (list
-      (make-lex-rule-repeat
-       :rule character-class
-       :min 1
-       :max 1)))))
+  (make-lex-rule
+   :print-as-dot t
+   :data
+   (list
+    (match-one-char
+     #\Newline
+     (make-lex-character-class
+      :negated-p t)))))
 
+(defun match-one-char (char &optional (character-class-rule
+				       (make-lex-character-class)))
+  "create a sequence rule that matches one character"
+  (set-character-class-char
+   character-class-rule
+   char)
+  (make-lex-rule-repeat
+   :rule character-class-rule
+   :min 1
+   :max 1))
 ;;the string object covers both strings and individual characters
-(progn
-  (struct-to-clos:struct->class
-   (defstruct lex-rule-string
-     (print-as-char-p nil)
-     data))
-  (defun print-lex-rule-string (stream object)
-    ;;FIXME::what characters can tokens consist of?
-    (declare (ignorable object))
-    (let ((str (lex-rule-string-data object)))
-      (cond ((and (= 1 (length str))
-		  (lex-rule-string-print-as-char-p object))
-	     (write-string (char-to-escaped-char (aref str 0))
-			   stream))
-	    (t
-	     (write-char #\" stream)
-	     (let ((str str))
-	       (dotimes (index (length str))
-		 (write-string (char-to-escaped-char-string (aref str index))
-			       stream)))
-	     (write-char #\" stream)))))
-  (set-pprint-dispatch 'lex-rule-string 'print-lex-rule-string))
+(defun match-string (string &optional (print-as-char nil))
+  (make-lex-rule
+   :string-data string
+   :string-p t
+   :string-print-as-char-p print-as-char
+   :data
+   (map 'list
+	(lambda (char)
+	  (match-one-char char))
+	string)))
 (define-c-parse-rule lex-rule-string ()
-  (make-lex-rule-string
-   :data
-   (v lex-string)))
+  (match-string (v lex-string)))
 (define-c-parse-rule lex-rule-char ()
-  (make-lex-rule-string
-   :print-as-char-p t
-   :data
-   (string (v lex-char-or-escaped-char))))
+  (match-string (string (v lex-char-or-escaped-char)) t))
 
 (define-c-parse-rule lex-rule-sequence (&optional (toplevel nil))
   (make-lex-rule
@@ -483,36 +505,41 @@
   (stringify (postimes character)))
 
 ;;need to evaluate this before testing
-(defparameter *defs*
-  (mapcar
-   (lambda (item)
-     (parse-with-garbage 'lex-def item))
-   *lex-strings*))
+(defparameter *defs* nil)
+(defun set-deps ()
+  (setf *defs*
+	(mapcar
+	 (lambda (item)
+	   (parse-with-garbage 'lex-def item))
+	 *lex-strings*)))
 
 ;;run split-lex-2 to set the dynamic variables
 (defun test-lines (&optional (rule 'lex-rule-start) (rules *lex-patterns*))
   (let ((correct 0)
 	(wrong 0))
+    (terpri)
     (mapc (lambda (text)
 	    (let* ((obj (parse-with-garbage rule text))
 		   (a (princ-to-string 
 		       obj)))
 	      (flet ((dump ()
-		       (terpri)
 		       (princ a)
 		       (terpri)
 		       (princ text)
 		       (terpri)))
-		(dump)
 		(cond ((string-a-prefix-b-p
 			a
 			text)
+		       (progn
+			 (format t "~%same:~%") 
+			 (dump))
 		       (incf correct))
 		      (t
 		       (incf wrong)
-		       (write-string "~%DIFFERENT:")
+		       (format t "~%DIFFERENT:~%")
 		       (dump)
-		       (inspect obj))))))
+	;	       (inspect obj)
+		       )))))
 	  rules)
     (format t "correct: ~a wrong: ~a~%" correct wrong)
     (values)))
@@ -527,12 +554,24 @@
   "test whether string a is a prefix of b"
   (when (> (length a)
 	   (length b))
-    (error "a is longer than b"))
+    ;;(error "a is longer than b")
+    (return-from string-a-prefix-b-p nil)
+    )
   (dotimes (index (length a))
     (unless (char= (aref a index)
 		   (aref b index))
       (return-from string-a-prefix-b-p nil)))
   t)
+
+(defun setup ()
+  (split-lex2)
+  (set-deps)
+  (values))
+
+(defun test-things (&optional not-pretty)
+  (let ((*print-raw* not-pretty))
+    (teststuff))
+  (values))
 
 ;;character classes
 ;;strings <- can be replaced by a special lex-rule with all character-classes of length 1
@@ -544,3 +583,9 @@
 
 ;;"foo" -> ([f]{1,1}[o]{1,1}[o]{1,1})
 ;;. -> ([^\n]{1,1})
+
+;;lex-rule-sequence sequencing -> concatenate + list-v?
+;;lex-rule-or option -> ||
+;;lex-rule-repeat repeat -> times
+;;lex-character-class ->  [! with character] characters, || character-ranges
+;;references -> references to other rules
