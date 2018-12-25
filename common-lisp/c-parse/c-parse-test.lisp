@@ -142,8 +142,21 @@
 		   ,(lex-rule-dump rule))))
       form)))
 (defun load-processed-definitions ()
-  (mapcar
-   'compile-to-esrap-liquid
-   *processed-definitions*))
+  `(progn
+     ,@(mapcar
+	'compile-to-esrap-liquid
+	*processed-definitions*)))
 (defparameter *processed-rules* (mapcar 'split-lex-line-rule
 					*lex-rules-lines*))
+
+(defparameter *foo*
+  `(||
+    ,@(mapcar (lambda (x)
+		`(progn ,(lex-rule-dump (first x))
+			,(second x)))
+	      *processed-rules*)))
+
+#+nil
+(utility::etouq
+  `(define-c-parse-rule lexer-foo ()
+     ,*foo*))
