@@ -526,5 +526,5 @@
 ;;options
 ;;all-but-newline <- not necessary? a character class?
 
-;;"foo" -> [f]{1,1}[o]{1,1}[o]{1,1}
+;;"foo" -> ([f]{1,1}[o]{1,1}[o]{1,1})
 ;;. -> ([^\n]{1,1})
