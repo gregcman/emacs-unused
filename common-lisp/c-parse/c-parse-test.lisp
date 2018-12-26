@@ -292,4 +292,7 @@
 (defun lex (string)
   (parse-with-garbage 'lex-tokens string))
 
-(defparameter *file1* (alexandria:read-file-into-string "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"))
+(defparameter *file1* (alexandria:read-file-into-string
+		       #+nl
+		       "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
+		       "/home/imac/install/src/pycparser-master/examples/c_files/hash.c"))
