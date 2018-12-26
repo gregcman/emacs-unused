@@ -30,8 +30,8 @@
 		     "S"))
 	     #\S))
 
-(defun parse-with-garbage (rule text)
-  (c-parse-parse rule text :junk-allowed t))
+(defun parse-with-garbage (rule text &key (start nil) (end nil))
+  (c-parse-parse rule text :junk-allowed t :start start :end end))
 
 (defun test-parse-rules (&optional (rules *lex-rules-lines*))
   (mapcar (lambda (text)
@@ -297,11 +297,15 @@
 	 lex-token-string
 	 #\)))
 
-(define-c-parse-rule lex-tokens ()
-  (times lexer-foo))
-
 (defun lex (string)
-  (parse-with-garbage 'lex-tokens string))
+  (let ((start 0))
+    (loop
+       (multiple-value-bind (result len)
+	   (parse-with-garbage 'lexer-foo string :start start)
+	 (when (zerop len)
+	   (return))
+	 (princ  (car result))
+	 (incf start len)))))
 
 (defparameter *file1* (alexandria:read-file-into-string
 		       #+nl
