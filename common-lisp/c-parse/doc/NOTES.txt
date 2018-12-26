@@ -176,3 +176,5 @@ cl-yacc grammar -> tracks token locations, copy and paste C external_declaration
 need custom C preprocessor? -> just locate the #includes, #pragmas, #defines recursively
 -> figure out what #includes are defined where, because of #undef
 -> vacietis a basis for a c preprocessor?
+
+https://www.irif.fr/~jch//software/cl-yacc/cl-yacc.pdf <- clyacc manual

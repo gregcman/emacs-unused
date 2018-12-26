@@ -62,3 +62,72 @@
 (defparameter *yacc-grammar* nil)
 (defun foobar69 ()
   (setf *yacc-grammar* (foobar68)))
+
+(defparameter *yacc-terminal-chars* nil) ;;because characters are terminals. FIXME:documentation
+(defparameter *yacc-package* (make-package "YACC-SYMBOLS"))
+(defun yacc-symbol (x)
+  (if x
+      (let ((string (etypecase x
+		      (string (format nil "string%~a" x))
+		      (character
+		       (pushnew x *yacc-terminal-chars*)
+		       (format nil "character%-~a" x))
+		      (symbol (format nil "symbol%~a" x)))))
+	(intern string *yacc-package*))
+      x))
+#+nil
+"A  parser  consumes  the  output  of  a  lexer,  that  produces  a  stream  of  terminals.   CL-Yacc
+expects the lexer to be a function of no arguments (a
+thunk
+) that returns two values:  the next
+terminal symbol, and the value of the symbol, which will be passed to the action associated with
+a production.  At the end of the input, the lexer should return
+nil
+."
+(defun lex-for-cl-yacc (string)
+  (let ((start 0))
+    (lambda ()
+      (block out
+	(tagbody try-again
+	   (multiple-value-bind (result len)
+	       (parse-with-garbage 'lexer-foo string :start start)
+	     (incf start len)
+	     (when (zerop len)
+	       (return-from out (values nil nil)))
+	     (destructuring-bind (string-thing ignorable yacc-token-type) result
+	       (declare (ignorable string-thing yacc-token-type ignorable))
+	       ;;(write-char (char-code-object yacc-token-type) stream)
+	       ;;(princ (stringy (car result)) stream)
+	       
+	       ;;to skip over whitespace
+	       (when (not yacc-token-type)
+		 (go try-again))
+	       (return-from out
+		 (values yacc-token-type
+			 string-thing))
+	       
+	       )))))))
+(defparameter *yacc-start-symbol* (yacc-symbol *yacc-start-string*))
+(defparameter *yacc-grammar-symbols* (tree-map 'yacc-symbol *yacc-grammar*))
+(defparameter *yacc-token-symbols* (tree-map 'yacc-symbol
+					     (append *yacc-token-strings*
+						     *yacc-terminal-chars*)))
+
+(defun tree-map (fn tree)
+  "replace each list-element in tree with (funcall fn list-element)"
+  ;;(tree-map (lambda (x) (* x x)) '(1 2 (2 3) . foo)) -> (1 4 (4 9) . FOO)
+  (cond ((atom tree) (funcall fn tree))
+	(t (cons (tree-map fn (first tree))
+		 (let ((rest (rest tree)))
+		   (if (and rest
+			    (listp rest))
+		       (tree-map fn rest)
+		       rest))))))
+
+(utility:etouq
+  `(define-parser *c*
+     (:start-symbol ,*yacc-start-symbol*)
+     (:terminals ,*yacc-token-symbols*)
+     ,@*yacc-grammar-symbols*))
+(defun parsefoobar (string)
+  (yacc:parse-with-lexer (lex-for-cl-yacc string) *c*))

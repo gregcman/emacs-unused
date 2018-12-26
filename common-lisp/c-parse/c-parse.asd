@@ -7,6 +7,7 @@
 	       #:uiop
 	       #:esrap-liquid
 	       #:utility
+	       #:yacc
 	       #:uncommon-lisp
 	       #:fiveam)
   :serial t

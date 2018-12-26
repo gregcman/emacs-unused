@@ -1,5 +1,5 @@
 (defpackage :c-parse
-  (:use :cl :esrap-liquid))
+  (:use :cl :esrap-liquid :yacc))
 (in-package :c-parse)
 
 (defparameter *path* (asdf:system-source-directory :c-parse))

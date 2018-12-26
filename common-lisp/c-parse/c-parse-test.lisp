@@ -163,7 +163,17 @@
 			    (list
 			     ,parse-result
 			     ,what-fun
-			     ,(ad-hoc-function what-fun)))))))
+			     ,(flet ((convert-to-token (x)
+				       (yacc-symbol x)))
+				(case what-fun
+				  (:comment
+				   `(progn (v lex-comment-end)
+					   ,(convert-to-token nil)))
+				  (:check-type  ;;:check-type
+				   `(quote ,(convert-to-token "IDENTIFIER"))
+				   ;;FIXME::detect typedefs and enums
+				   )
+				  (otherwise `(quote ,(convert-to-token what-fun)))))))))))
 		 syms
 		 *processed-rules*)
        (define-c-parse-rule lexer-foo ()
@@ -238,13 +248,6 @@
 		     (progn (rec (car node))
 			    (rec (cdr node)))))))
       (rec tree))))
-
-(defun ad-hoc-function (n)
-  (case n
-    (:comment `(v lex-comment-end))
-    (:check-type  :check-type ;;"IDENTIFIER" ;;FIXME::detect typedefs and enums
-		 )
-    (otherwise n)))
 
 (defun sym-name (x)
   (find-lex-symbol (format nil "LEX-GENERATED~a" x)))
@@ -330,6 +333,7 @@
 		       "/home/imac/install/src/pycparser-master/examples/c_files/hash.c"))
 
 ;;FIXME:: hack -> using unicode characters to represent tokens, thus simplifyng tokens
+#+nil
 (progn
   (defparameter *char-code-pointer* nil)
   (defparameter *objects-to-characters* nil)
