@@ -30,8 +30,8 @@
 		     "S"))
 	     #\S))
 
-(defun parse-with-garbage (rule text &key (start nil) (end nil))
-  (c-parse-parse rule text :junk-allowed t :start start :end end))
+(defmacro parse-with-garbage (rule text &rest rest &key &allow-other-keys)
+  `(c-parse-parse ,rule ,text :junk-allowed t ,@rest))
 
 (defun test-parse-rules (&optional (rules *lex-rules-lines*))
   (mapcar (lambda (text)
@@ -160,7 +160,7 @@
 		       `(define-c-parse-rule ,name ,()
 			  (let ((,parse-result (progn-v ,(lex-rule-dump (first x)))))
 			    (list
-			     (stringy ,parse-result)
+			     ,parse-result
 			     ,what-fun
 			     ,(ad-hoc-function what-fun)))))))
 		 syms
@@ -304,7 +304,7 @@
 	   (parse-with-garbage 'lexer-foo string :start start)
 	 (when (zerop len)
 	   (return))
-	 (princ  (car result))
+	 (princ (stringy (car result)))
 	 (incf start len)))))
 
 (defparameter *file1* (alexandria:read-file-into-string
