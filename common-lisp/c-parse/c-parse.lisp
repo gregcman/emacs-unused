@@ -531,6 +531,20 @@
       (save-current-list))
     (nreverse list-list)))
 (defmethod lex-rule-dump ((node lex-rule))
+  ;;deletable optimization, exits prematurely
+  ;;#+nil
+  (flet ((exit (n)
+	   (return-from lex-rule-dump n)))
+    (let ((str (lex-rule-string-data node)))
+      (when (lex-rule-string-p node)
+	(let ((data
+	       (if (lex-rule-string-print-as-char-p node)
+		   (aref str 0)
+		   str)))
+	  (exit (if *v-wrap-necessary*
+		    `(v ,data)
+		    data))))))
+  
   ;;each lex rule's data is a list of sub atoms and bars denoting choice.
   ;;divide by token divides the list of sub atoms by the bars
   (let ((undumped (divide-by-token (lex-rule-data node) *bar-token*)))
@@ -573,7 +587,8 @@
 	 (end `(postimes ,subexpr)))))
     
     `(times ,subexpr
-	    :from ,min
+	    ,@(unless (zerop min)
+		`(:from ,min))
 	    ,@(if (eql max *lex-rule-repeat-infinity*)
 		  nil
 		  `(:upto ,max)))))

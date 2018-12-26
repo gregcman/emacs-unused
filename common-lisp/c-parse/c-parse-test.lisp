@@ -153,12 +153,12 @@
   (let* ((iota (alexandria:iota (length *processed-rules*)))
 	 (syms (mapcar 'sym-name iota)))
     (setf *syms* syms)
-    `(progn
+    `(progn       
        ,@(mapcar (lambda (name x)
 		   (let ((what-fun (parse-lex-def (second x))))
 		     (utility:with-gensyms (parse-result)
 		       `(define-c-parse-rule ,name ,()
-			  (let ((,parse-result (progn-v ,(lex-rule-dump (first x)))))
+			  (let ((,parse-result ,(lex-rule-dump (first x))))
 			    (list
 			     ,parse-result
 			     ,what-fun
@@ -229,8 +229,14 @@
 (defun stringy (tree)
   ;;turn a tree of nil's and characters produced by esrap-liquid into a
   ;;string
-  (stringify
-   (remove-if-not 'characterp (alexandria:flatten tree))))
+  (with-output-to-string (stream)
+    (labels ((rec (node)
+	       (when node
+		 (if (atom node)
+		     (princ node stream)
+		     (progn (rec (car node))
+			    (rec (cdr node)))))))
+      (rec tree))))
 
 (defun ad-hoc-function (n)
   (case n
