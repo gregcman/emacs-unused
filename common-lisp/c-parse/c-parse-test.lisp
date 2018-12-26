@@ -126,7 +126,7 @@
 (defun setup ()
   (split-lex2)
   (values))
-(setup)
+(setup) ;;fixme:: better load setup
 (defun test-things (&optional not-pretty)
   (let ((*print-raw* not-pretty))
     (teststuff))
@@ -148,23 +148,25 @@
 	*processed-definitions*)))
 (defparameter *processed-rules* (mapcar 'split-lex-line-rule
 					*lex-rules-lines*))
-
-(defparameter *foo*)
 (defun bar ()
   (let* ((iota (alexandria:iota (length *processed-rules*)))
 	 (syms (mapcar 'sym-name iota)))
     `(progn
        ,@(mapcar (lambda (name x)
 		   `(define-c-parse-rule ,name ,()
-		      (progn ,(lex-rule-dump (first x))
-			     ,(second x))))
+		      (list ,(lex-rule-dump (first x))
+			    ,(second x))))
 		 syms
 		 *processed-rules*)
        (define-c-parse-rule lexer-foo ()
-	 (|| ,@syms)))))
+	 (most-full-parse ,@syms)))))
 
 (defun sym-name (x)
   (find-lex-symbol (format nil "LEX-GENERATED~a" x)))
+
+(defun eval-lexer ()
+  (eval (load-processed-definitions))
+  (eval (bar)))
 
 #+nil
 (utility::etouq
