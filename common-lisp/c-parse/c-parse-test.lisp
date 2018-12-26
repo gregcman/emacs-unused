@@ -148,26 +148,148 @@
 	*processed-definitions*)))
 (defparameter *processed-rules* (mapcar 'split-lex-line-rule
 					*lex-rules-lines*))
+(defparameter *syms* nil)
 (defun bar ()
   (let* ((iota (alexandria:iota (length *processed-rules*)))
 	 (syms (mapcar 'sym-name iota)))
+    (setf *syms* syms)
     `(progn
        ,@(mapcar (lambda (name x)
-		   `(define-c-parse-rule ,name ,()
-		      (list ,(lex-rule-dump (first x))
-			    ,(second x))))
+		   (let ((what-fun (parse-lex-def (second x))))
+		     (utility:with-gensyms (parse-result)
+		       `(define-c-parse-rule ,name ,()
+			  (let ((,parse-result (progn-v ,(lex-rule-dump (first x)))))
+			    (list
+			     (stringy ,parse-result)
+			     ,what-fun
+			     ,(ad-hoc-function what-fun)))))))
 		 syms
 		 *processed-rules*)
        (define-c-parse-rule lexer-foo ()
-	 (most-full-parse ,@syms)))))
+	 ;;why? it was taking around 13 to 20 seconds to compile
+	 ;;most-full-parse
+	 (v reimplemented-most-full-parse *syms*)))))
+
+(in-package :esrap-liquid)
+;;change sort ->stable-sort nreverse
+(defmacro most-full-parse2 (&rest clauses)
+  (with-gensyms (g!-result g!-the-length g!-successful-parses g!-parse-errors g!-most-full-parse)
+    `(tracing-level
+       (if-debug "MOST-FULL-PARSE")
+       (multiple-value-bind (,g!-result ,g!-the-length)
+	   ;; All this tricky business with BLOCK just for automatic LENGTH tracking.
+	   (block ,g!-most-full-parse
+	     (let (,g!-parse-errors ,g!-successful-parses)
+	       ,@(mapcar (lambda (clause)
+			   `(the-position-boundary
+			      (print-iter-state)
+			      (with-saved-iter-state (the-iter)
+				(with-fresh-cap-stash
+				  (handler-case ,(maybe-wrap-in-descent clause)
+				    (internal-esrap-error (e)
+				      (restore-iter-state)
+				      (push e ,g!-parse-errors))
+				    (:no-error (res)
+				      (restore-iter-state)
+				      (push (list res the-length *cap-stash*)
+					    ,g!-successful-parses)))))))
+			 clauses)
+	       (if ,g!-successful-parses
+		   (destructuring-bind (res length stash)
+		       (car (stable-sort (nreverse ,g!-successful-parses) #'> :key #'cadr))
+		     ,(propagate-cap-stash-upwards '*cap-stash* 'stash nil)
+		     (fast-forward the-iter length)
+		     (values res length))
+		   (progn (if-debug "|| before failing P ~a L ~a" the-position the-length)
+			  (fail-parse "MOST-FULL-PARSE failed.")))))
+	 (if-debug "MOST-FULL-PARSE aftermath ~a ~a" the-length ,g!-the-length)
+	 (incf the-length ,g!-the-length)
+	 ,g!-result))))
+(in-package :c-parse)
+
+(define-c-parse-rule reimplemented-most-full-parse (syms)
+  (esrap-liquid::most-full-parse2
+   (descend-with-rule (first syms))
+   (let ((rest (rest syms)))
+     (if (null (nthcdr 1 rest)) ;; a list of length one
+	 (descend-with-rule (first rest))
+	 (v reimplemented-most-full-parse rest)))))
+
+(defun stringy (tree)
+  ;;turn a tree of nil's and characters produced by esrap-liquid into a
+  ;;string
+  (stringify
+   (remove-if-not 'characterp (alexandria:flatten tree))))
+
+(defun ad-hoc-function (n)
+  (case n
+    (:comment `(v lex-comment-end))
+    (:check-type "IDENTIFIER" ;;FIXME::detect typedefs and enums
+		 )
+    (otherwise n)))
 
 (defun sym-name (x)
   (find-lex-symbol (format nil "LEX-GENERATED~a" x)))
 
 (defun eval-lexer ()
+  (print "loading defs:")
   (eval (load-processed-definitions))
+  (print "loading rules:")
   (eval (bar)))
 
 #+nil
 (utility::etouq
+ )
+(define-c-parse-rule lex-comment-end-token ()
+  (progn (v #\*)
+	 (v #\/)))
+(define-c-parse-rule lex-comment-end ()
+  (prog1 (postimes
+	  (progn (! lex-comment-end-token)
+		 (v character))
+	  )
+    (v lex-comment-end-token))
+  ;; nil
   )
+(defun parse-lex-def (text)
+  (parse-with-garbage 'ad-hoc-lex-read-file text))
+
+;;;FIXME:: fragile hack that picks out two irregular cases?
+;;;or is this how to do it?
+(define-c-parse-rule ad-hoc-lex-read-file ()
+  (|| (progn (? whitespace)
+	     (v "comment();")
+	     :comment)
+      (progn
+	(? whitespace)
+	(v "return check_type();")
+	:check-type)
+      lex-read-return))
+
+(define-c-parse-rule lex-read-return ()
+  (? whitespace)
+  (v "return")
+  (? whitespace)
+  (cap :thing (|| lex-read-char
+		  lex-read-token
+		  lex-token-string))
+  (? whitespace)
+  (v #\;)
+  (recap :thing))
+
+(define-c-parse-rule lex-read-char ()
+  (progm #\'
+	 character
+	 #\'))
+(define-c-parse-rule lex-read-token ()
+  (progm #\(
+	 lex-token-string
+	 #\)))
+
+(define-c-parse-rule lex-tokens ()
+  (times lexer-foo))
+
+(defun lex (string)
+  (parse-with-garbage 'lex-tokens string))
+
+(defparameter *file1* (alexandria:read-file-into-string "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"))
