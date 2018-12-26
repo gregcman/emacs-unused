@@ -172,48 +172,59 @@
 
 (in-package :esrap-liquid)
 ;;change sort ->stable-sort nreverse
-(defmacro most-full-parse2 (&rest clauses)
-  (with-gensyms (g!-result g!-the-length g!-successful-parses g!-parse-errors g!-most-full-parse)
-    `(tracing-level
-       (if-debug "MOST-FULL-PARSE")
-       (multiple-value-bind (,g!-result ,g!-the-length)
-	   ;; All this tricky business with BLOCK just for automatic LENGTH tracking.
-	   (block ,g!-most-full-parse
-	     (let (,g!-parse-errors ,g!-successful-parses)
-	       ,@(mapcar (lambda (clause)
-			   `(the-position-boundary
-			      (print-iter-state)
-			      (with-saved-iter-state (the-iter)
-				(with-fresh-cap-stash
-				  (handler-case ,(maybe-wrap-in-descent clause)
-				    (internal-esrap-error (e)
-				      (restore-iter-state)
-				      (push e ,g!-parse-errors))
-				    (:no-error (res)
-				      (restore-iter-state)
-				      (push (list res the-length *cap-stash*)
-					    ,g!-successful-parses)))))))
-			 clauses)
-	       (if ,g!-successful-parses
-		   (destructuring-bind (res length stash)
-		       (car (stable-sort (nreverse ,g!-successful-parses) #'> :key #'cadr))
-		     ,(propagate-cap-stash-upwards '*cap-stash* 'stash nil)
-		     (fast-forward the-iter length)
-		     (values res length))
-		   (progn (if-debug "|| before failing P ~a L ~a" the-position the-length)
-			  (fail-parse "MOST-FULL-PARSE failed.")))))
-	 (if-debug "MOST-FULL-PARSE aftermath ~a ~a" the-length ,g!-the-length)
-	 (incf the-length ,g!-the-length)
-	 ,g!-result))))
+(defmacro esrap-liquid::most-full-parse2 (clauses)
+  (once-only (clauses)
+    (with-gensyms (g!-result g!-the-length g!-successful-parses
+			     ;;g!-parse-errors
+			     b!-max-length
+			     b!-max-result
+			     b!-max-cap-stash
+			     b!-list-iterator)
+      `(tracing-level
+	 (if-debug "MOST-FULL-PARSE")
+	 (multiple-value-bind (,g!-result ,g!-the-length)
+	   (let (;;,g!-parse-errors
+		 ,b!-max-result
+		 ,g!-successful-parses
+		 ,b!-max-cap-stash
+		 (,b!-max-length 0))
+	     (dolist (,b!-list-iterator ,clauses)
+	       (the-position-boundary
+		 (print-iter-state)
+		 (with-saved-iter-state (the-iter)
+		   (with-fresh-cap-stash
+		     (handler-case (descend-with-rule ,b!-list-iterator)
+		       (internal-esrap-error (e)
+			 (declare (ignorable e))
+			 (restore-iter-state)
+			 ;;(push e ,g!-parse-errors)
+			 )
+		       (:no-error (res)
+			 (restore-iter-state)
+			 (when (> the-length ,b!-max-length)
+			   (setf ,b!-max-length the-length)
+			   (setf ,g!-successful-parses t)
+			   (setf ,b!-max-result res)
+			   (setf ,b!-max-cap-stash *cap-stash*))
+			 #+nil
+			 (push (list res the-length *cap-stash*)
+			       ,g!-successful-parses)))))))
+	     (if ,g!-successful-parses
+		 (multiple-value-bind (res length stash) (values ,b!-max-result
+								 ,b!-max-length
+								 ,b!-max-cap-stash)
+		   ,(propagate-cap-stash-upwards '*cap-stash* 'stash nil)
+		   (fast-forward the-iter length)
+		   (values res length))
+		 (progn (if-debug "|| before failing P ~a L ~a" the-position the-length)
+			(fail-parse "MOST-FULL-PARSE failed."))))
+	   (if-debug "MOST-FULL-PARSE aftermath ~a ~a" the-length ,g!-the-length)
+	   (incf the-length ,g!-the-length)
+	   ,g!-result)))))
 (in-package :c-parse)
 
 (define-c-parse-rule reimplemented-most-full-parse (syms)
-  (esrap-liquid::most-full-parse2
-   (descend-with-rule (first syms))
-   (let ((rest (rest syms)))
-     (if (null (nthcdr 1 rest)) ;; a list of length one
-	 (descend-with-rule (first rest))
-	 (v reimplemented-most-full-parse rest)))))
+  (esrap-liquid::most-full-parse2 syms))
 
 (defun stringy (tree)
   ;;turn a tree of nil's and characters produced by esrap-liquid into a
