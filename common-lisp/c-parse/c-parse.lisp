@@ -14,10 +14,15 @@
     (unless (char= #\Space (aref str i))
       (return-from whitespace-string nil)))
   t)
-(defparameter *lex-txt2*
+(defun file-lines-no-whitespace-lines (string)
   (remove-if #'whitespace-string
-	     (split-sequence:split-sequence #\Newline *lex-txt*)))
-
+	     (split-sequence:split-sequence #\Newline string)))
+(defparameter *lex-txt2*
+  (file-lines-no-whitespace-lines 
+   *lex-txt*))
+(defparameter *yacc-txt2*
+  (file-lines-no-whitespace-lines 
+   *yacc-txt*))
 (defun print-list (&optional (data *lex-txt2*))
   (dolist (item data)
     (print item)))
@@ -25,6 +30,33 @@
   (dolist (item data)
     (terpri)
     (princ item)))
+
+;;both the lex and yacc file are separated into 3 sections by two "%%"
+;;for use with *lex-txt2* and *yacc-txt2*
+(defun %%-positions (data)
+  (let ((first-end (position "%%" data :test 'string=)))
+    (values first-end
+	    (position "%%" data :test 'string= :start (+ 1 first-end)))))
+
+(defun seqs-to-string (seqs)
+  (apply 'concatenate 'string seqs))
+(defun split-yacc (&optional (yacc *yacc-txt2*))
+  (multiple-value-bind (first second) (%%-positions yacc)
+    (values (subseq yacc 0 first)
+	    (let ((value (subseq yacc (+ 1 first) second))
+		  acc)
+	      ;;intersperse newlines again and concatenate for esrap-liquid
+	      (dolist (val value)
+		(push val acc)
+		(push
+		 '(#\newline)
+		 acc))
+	      (seqs-to-string (nreverse acc))))))
+(defparameter *yacc-tokens-lines* nil)
+(defparameter *yacc-definitions* nil)
+(defun split-yacc2 ()
+  (setf (values *yacc-tokens-lines* *yacc-definitions*)
+	(split-yacc)))
 
 ;;https://docs.oracle.com/cd/E19504-01/802-5880/lex-6/index.html
 ;;The mandatory rules section opens with the delimiter %%.
@@ -44,8 +76,7 @@
 			     lex)))
      ;;terminals, called definitions
      (subseq lex start first-end))
-   (let* ((first-end (position "%%" lex :test 'string=))
-	  (second-end (position "%%" lex :test 'string= :start (+ 1 first-end))))
+   (multiple-value-bind (first-end second-end) (%%-positions lex)
      ;;patterns, called rules
      (subseq lex (+ 1 first-end) second-end))))
 ;;http://dinosaur.compilertools.net/lex/index.html <- detailed explanation of lex file format

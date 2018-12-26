@@ -125,6 +125,7 @@
 
 (defun setup ()
   (split-lex2)
+  (split-yacc2)
   (values))
 (setup) ;;fixme:: better load setup
 (defun test-things (&optional not-pretty)
