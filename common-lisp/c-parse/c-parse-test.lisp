@@ -241,7 +241,7 @@
 (defun ad-hoc-function (n)
   (case n
     (:comment `(v lex-comment-end))
-    (:check-type "IDENTIFIER" ;;FIXME::detect typedefs and enums
+    (:check-type  :check-type ;;"IDENTIFIER" ;;FIXME::detect typedefs and enums
 		 )
     (otherwise n)))
 
@@ -266,7 +266,7 @@
 		 (v character))
 	  )
     (v lex-comment-end-token))
-  ;; nil
+   nil
   )
 (defun parse-lex-def (text)
   (parse-with-garbage 'ad-hoc-lex-read-file text))
@@ -302,18 +302,50 @@
   (progm #\(
 	 lex-token-string
 	 #\)))
-
-(defun lex (string)
+;;(string-thing lex-token-type yacc-token-type)
+(defun lex (string &optional (stream *standard-output*))
   (let ((start 0))
     (loop
        (multiple-value-bind (result len)
 	   (parse-with-garbage 'lexer-foo string :start start)
 	 (when (zerop len)
 	   (return))
-	 (princ (stringy (car result)))
+	 (destructuring-bind (string-thing ignorable yacc-token-type) result
+	   (declare (ignorable string-thing ignorable))
+	   ;;(write-char (char-code-object yacc-token-type) stream)
+	   (princ (stringy (car result)) stream)
+	   )
 	 (incf start len)))))
+
+(defun lex2 (string)
+  (with-output-to-string (stream)
+    (lex string stream)))
 
 (defparameter *file1* (alexandria:read-file-into-string
 		       #+nl
 		       "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
 		       "/home/imac/install/src/pycparser-master/examples/c_files/hash.c"))
+
+;;FIXME:: hack -> using unicode characters to represent tokens, thus simplifyng tokens
+(progn
+  (defparameter *char-code-pointer* nil)
+  (defparameter *objects-to-characters* nil)
+  (defun reset-char-code-object-table ()
+    (setf *char-code-pointer* 32)
+    (setf *objects-to-characters* (make-hash-table :test 'equal)))
+  (reset-char-code-object-table)
+  (defun char-code-object (obj)
+    (let ((there? (gethash obj *objects-to-characters*)))
+      (unless there?
+	(let ((new (code-char *char-code-pointer*)))
+	  (setf (gethash obj *objects-to-characters*)
+		new)
+	  (setf there? new))
+	(incf *char-code-pointer*))
+      there?)))
+
+(define-c-parse-rule left-recursion? ()
+  (progn-v left-recursion?
+	   #\(
+	   character
+	   #\)))
