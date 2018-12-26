@@ -12,4 +12,5 @@
   :serial t
   :components 
   ((:file "c-parse")
-   (:file "c-parse-test")))
+   (:file "c-parse-test")
+   (:file "yacc")))

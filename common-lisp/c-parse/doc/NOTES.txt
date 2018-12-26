@@ -165,3 +165,14 @@ use CL-YACC as a LALR parser for the c grammar, after converting it from the fil
 - have different C macros for each distinct use case/context?
 
 ;;rip notes from terminal625's blogspot
+
+-lisp uiop:run-command:
+ - cpp 
+ - pycparser -> converting preprocessed C file to JSON, JSON->Lisp
+
+emacs-unused c lexer -> emacs-unused [TODO] cl-yacc C grammar parser
+cl-yacc grammar -> tracks token locations, copy and paste C external_declarations
+
+need custom C preprocessor? -> just locate the #includes, #pragmas, #defines recursively
+-> figure out what #includes are defined where, because of #undef
+-> vacietis a basis for a c preprocessor?
