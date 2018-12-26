@@ -379,8 +379,10 @@
    :min (recap :min)
    :max (recap :max)))
 
+(define-c-parse-rule white-char ()
+  (|| #\Newline #\Space #\tab))
 (define-c-parse-rule whitespace ()
-  (postimes (|| #\Newline #\Space #\tab)))
+  (postimes white-char))
 (progn
   ;;FIXME::lex-rule, which handles sequences, is becoming dumping ground for
   ;;irregular lex syntax like strings and the dot ->.

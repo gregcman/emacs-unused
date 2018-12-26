@@ -255,9 +255,11 @@
   (print "loading rules:")
   (eval (bar)))
 
-#+nil
-(utility::etouq
- )
+;;;yacc and lex comments are the same?
+(define-c-parse-rule lex-yacc-multiline-comment ()
+  (progn-v
+   "/*"
+   lex-comment-end))
 (define-c-parse-rule lex-comment-end-token ()
   (progn (v #\*)
 	 (v #\/)))
@@ -312,7 +314,7 @@
 	 (when (zerop len)
 	   (return))
 	 (destructuring-bind (string-thing ignorable yacc-token-type) result
-	   (declare (ignorable string-thing ignorable))
+	   (declare (ignorable string-thing yacc-token-type ignorable))
 	   ;;(write-char (char-code-object yacc-token-type) stream)
 	   (princ (stringy (car result)) stream)
 	   )
