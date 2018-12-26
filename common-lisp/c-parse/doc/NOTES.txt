@@ -1,0 +1,167 @@
+Emacs to common Lisp 
+Emacs lost the editor war
+Emacs: C, Elisp
+El-compilador ?
+hemlock/unused/elisp
+guile-emacs
+guile/test-suite/tests
+clocc/src/elisp
+emacs/tests
+- combine clocc/scr/elisp, hemlock/unused/elisp, port guile/module/language/elisp to cl using a scheme to CL transpiler, 
+Goals:
+easier?:
+- have a reusable paredit for the common lisp text editors
+- embed SLIME?
+Don't touch the emacs source code?
+rigorous testing?
+- Elisp reader: Has no reader macros like common lisp, but has magic autoload ";;;###autoload" comments, and the first line can have variables set
+- each elisp file seemingly has a "(provide 'name)"
+Elisp vs c
+1. be able to read elisp files
+2. compile the elisp files to a format that can be executed. probably just a lisp interpreter?
+3. don't need to implement all elisp primitives
+4. rigorous testing using elisp/tests
+ 
+c -> vacietis?
+compile emacs to a shared library? Lots of the Emacs primitives have c implementation? how to make incremental? froggeys iota llvm -> CL? cffi? 
+elisp -[hemlock/unused/elisp, guile-emacs[with port/transpiler], clocc/src/elisp]> CL
+c -[vacietis]> CL
+c -[clang]> llvm -[frogget's iota]> CL
+https://www.reddit.com/r/emacs/comments/a8d61y/help_with_porting_elisp_to_cl/
+manual hacking of C code will likely result in failure. emacs C code is just too big? read C code with vacietis and spit it back out again? don't implement advanced functionality? do so on a need-based basis
+must be:
+- trivial way to determine what functions are missing, what are implemented, what works, what doesn't work. must make use of emacs's tests directory.
+ 
+- how to tell if elisp code is incomplete? try executing it, when a symbol is unbound, just execute a stub that logs an error and the name of the unbound primitive/function? when the elisp code is complete it will not print anything. For example, porting paredit: try to run the paredit code : if something is missing, implement it, or require it to be loaded
+possible sources of confusion: C code? elisp elc bytecode? C interop?
+use shared libraries for emacs? 
+What to ignore? x server stuff??? win32 stuff?
+elisp c source implements it's own lisp [elisp], so a lot of stuff should be able to be trivially replaced by stuff in common lisp?
+1. read elisp code into a CL data structure. easier than CL because no reader macros, but have to keep track of magic autoload comments and characters and [ and quasiquote and the file-local variables at the top of the file in the comments like "-*- lexical-binding:t -*-" do not use symbols? trying not to mix CL and elisp. use strings or custom symbol struct
+2. not trying to port the entire emacs. just trying to lay down an easier path for incremental porting. So organizing test cases for elisp, keeping track of all implemented and unimplemented primitives. Need -based porting of primitives? if that fails, try to use a C library? or compile c to CL? or C -> llvm bitcode -> CL?
+3. ignore unecessary c code, like for win32 or x windows? 
+4. can elisp bytecode be ignored?
+1. elisp shall not mingle with CL. All elisp primitives should be wrapped by a CL object.
+2. elisp code is not CL code. No defmacros, no symbols, no numbers?
+1. emacs lisp reader, but do not use CL primitives. use special wrappers for elisp objects?
+2. read elisp files, taking note of the "-*- lexical-binding:t -*-" and deal with other variables as they pop up. take note of autoloads. take note of "(provide 'filename)" and "(require 'lib)"
+3. Run the elisp code? and have stubs for unimplemented primitives. be able to tell what primitives that are missing which need to be implemented for a given function, by executing different paths of a given function? and determining what functions are missing?
+4. thou shalt not fuck around with the emacs source? it's too huge? and a moving target? Emacs source is read only? take advantage of the test directory
+1. proper elisp reader
+2. elisp primitives are NOT CL primitives
+3. stub functions for unimplemented primitives
+4. recursively search all ".el" emacs lisp files and take note of them? or have a database of autoloads, file-local variables? like a simple recursive ASDF but for elisp?
+5. need based porting? for examples, paredit. harder: SLIME?
+6. emacs "test/" folder is your friend? 
+1. proper elisp reader
+2. elisp objects are NOT CL objects
+3. elisp code walker/execution engine interpreter: stub functions for unimplemented primitives to easily take note of what functions are completely ported and what relies on special difficult c primitives
+4. database for ".el" files, for "require" and "provide"
+5. for now, ignore xwindows, win32, other things? bytecode?
+6. emacs source code is god. divergence from the code will invariably end in failure and ostracization from the group. Use the test directory vigorously, the tests are god. 
+1. elisp reader
+2. elisp is not CL
+3. stub unimplemented
+4. database for ".el" files
+5. ignore a lot of the emacs source
+6. do not diverge from the emacs test cases
+7. be able to run parts of paredit, for example? need based porting?
+be able to distinguish what is implemented and what isn't
+worst case scenario: 
+- nearly all of emacs depends on insane quirks and long ass c code like quoted from https://www.reddit.com/r/emacs/comments/a8d61y/help_with_porting_elisp_to_cl/ sbwielinga 'Buffer Gap', 'Text Properties', 'Overlays', 'Strings and Characters', 'Regular Expressions', and 'Keymaps' 
+ 
+- nothing can be incrementally ported, the C code is so fragile that any change will result in the whole thing not working
+-the C code cannot be executed through c->llvm-> CL or cffi or froggey's iota or vacietis
+- the c dependencies for emacs cannot be incrementally loaded as shared libraries? 
+- create an elisp interpreter but primitives are not implemented? only implement primitives as needed. for example, load up paredit and determine what primitives are necessary. Then determine whether than can be replaced with CL
+ 
+ benefits of elisp in CL:
+- emacs users can use actual CL rather than emacs
+- integration with games and graphics
+- emacs is dying and lost the editor war? this could help turn the tide?
+- CL text editors don't have to reimplement the vast array of emacs utilities. like lem, portable hemlock, climacs...
+Emacs has been ported over and over again, but there has been no standalone elisp interpreter that can be embedded? what about GPL? Common Lisp depends on emacs + SLIME, but emacs is suffering, and lisp games are suffering. 
+1. elisp reader
+2. elisp is not CL
+3. Separate "core elisp language" from insane C primitives like regexes etc... with stubs, a=or leave primitives open to implementors
+4. database for ".el" files
+5. ignore a lot of the emacs source
+6. do not diverge from emacs test cases
+7. port incrementally, add primitives and backends incrementally
+export C functions for a shared library?
+how porting/using paredit.el might work:
+- reader reads file local variables, forms, sees (provide 'paredit) and (require 'other-stuff), taking note of autoloads[what to do?]
+  - recursively load other stuff
+  - during load, compile, and execute time? take note of unimplemented functions and primitives.
+  - try to run paredit using one of many CL backends, like climacs, hemlock, lem... when an unknown primitive is found, take note and then have option to abort or keep executing?
+ - maybe some libraries do not depend on the insane quirks of emacs. so for example regexes could be shimmed into something for CL-ppcre
+ - whenever a primitive is found that is not implemented, implement it! So if an unknown function pops up when trying to load/compile/run paredit, implement it and test it against the emacs/test/ folder or files. 
+- keep repeating the process of finding an unimplemented primitive, implementing it, and trying again until paredit works with elisp + CL text editor. At the end, paredit should be working, and more primitives should be at least partially implemented.
+- take very good notes with commenting elisp code. include links, explanations, purpose, intent, test cases, use cases, caveats, EVERYTHING
+- Worst best case scenario[?]: an elisp interpreter that is missing quite a few insane primitives implemented in C? but with a little effort paredit can be used in other places?
+ 
+ripped from emacs/INSTALL:  So if you want to
+build a small executable with very basic X support, use --without-all
+--with-x-toolkit=no. For the smallest possible executable without X,
+use --without-all --without-x
+./autogen.sh
+./configure --without-all --without-x
+./make -n ##show what make would have done 
+compile minimal emacs with ./configure --without-all --without-x to see tiniest emacs?
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Autoload.html
+ 
+##better configure?
+ ./configure --without-all --without-x --without-makeinfo --without-ns --without-libgmp
+wtf is gl-stamp?:
+- frame.c scroll.c xdisp.c menu.c window.c charset.c coding.c category.c ccl.c ...????etc? does emacs need sound?...??
+why does emacs have sound support? 
+embed ECL [embeddable common lisp] in emacs and migrate functions over incrementally?
+- be able to read C code and spit it back out again? what about comments?
+- be able to read C code and spit it back out again. take note of #defines and use vacietis or modify vacietis? spit out c code on a case-by case basis? give all emacs C functions a layer of indirection to a variable? in order to be inspected/replaced incrementally by ECL? which is connected to SLIME with swank? that is loaded by emacs.c main function? 
+- read C files and spit back out unchanged? comments don't matter?
+- case-by case #defines? convert c macros to lisp-like macros?
+- embed ECL in emacs. otherwise, how to embed emacs as shared library? so can call and replace C functions?
+- Give indirection to all emacs C functions by reading in with vacietis and spitting out with modified code? or use vacietis parse tree to generate CFFI code? Interactively create a callback in ECL?
+- be able to read in C code with Vacietis, setting appropriate #defines.
+- be able to generate CFFI code from Vacietis AST?
+- embed ECL in emacs. load up swank server for this ECL and edit from another emacs. Emacs tells ECL where all the variables for functions are so ECL can replace those functions with CFFI code, incrementally?
+- try not to crash emacs?!?!
+ 
+- is it possible to have a c to portable common lisp compiler that uses CFFI? and shared libraries? compile C to common lisp code that uses CFFI? Then any C code could be run in Common Lisp using shared libraries?
+- ./configure --without-all --without-x CC=clang CFLAGS=-H
+https://stackoverflow.com/questions/2297536/how-do-i-capture-all-of-my-compilers-output-to-a-file
+make &> compile.txt
+https://stackoverflow.com/questions/44682199/common-lisp-relative-path-to-absolute
+https://stackoverflow.com/questions/2297536/how-do-i-capture-all-of-my-compilers-output-to-a-file
+https://stackoverflow.com/questions/13079650/how-can-i-find-the-header-files-of-the-c-programming-language-in-linux
+- C preprocessor
+- C Parser using esrap-liquid
+- C dumper
+ 
+C Parser:  https://groups.google.com/forum/#!topic/comp.lang.lisp/ADnDOu6a4xE
+https://www.irif.fr/~jch/software/repos/cpc/
+eli bendersky's https://github.com/eliben/pycparser running in cl-python?
+https://eli.thegreenplace.net/2015/on-parsing-c-type-declarations-and-fake-headers#id2
+https://eli.thegreenplace.net/2007/11/24/the-context-sensitivity-of-cs-grammar
+pycparser does not come with c preprocsessor
+- custom c preprocessor according to 1-4 C translation phases: https://stackoverflow.com/questions/1476892/poster-with-the-8-phases-of-translation-in-the-c-language
+- lex and yacc: http://www.quut.com/c/ANSI-C-grammar-y-2011.html http://www.quut.com/c/ANSI-C-grammar-l-2011.html
+- convert lex and yacc spec to esrap-liquid parser?
+yacc is LALR https://en.wikipedia.org/wiki/Yacc
+- have a way to convert c macros into parsing rules?
+  - look at c macro, see where it is expanded, what tokens it becomes
+  - if tokens are consistent, and macro has only one tree root, then macro can be converted to rule?
+  - example: DEFUN macro for emacs? 
+- running
+ grep "DEFUN" * | wc -l 
+grep "static" * | wc -l
+in emacs/src directory gives 1239 and 3040. So around 5000 functions need to be transpiled.
+ 
+Oh no, the YACC grammar for C might not be suitable for packrat parsing? 
+use CL-YACC as a LALR parser for the c grammar, after converting it from the file with esrap-liquid?
+- convert the yacc file to cl-yacc
+- might have to use pycparser, or mix of multiple parsers?
+- use cpp? Pycparser->json? json ->lisp?  emacs-unused + cl-yacc -> dump C grammar and track file positions -> copy individual elements
+- have different C macros for each distinct use case/context?
+
+;;rip notes from terminal625's blogspot
