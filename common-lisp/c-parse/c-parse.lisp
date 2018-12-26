@@ -104,6 +104,7 @@
   (coerce seq 'string))
 
 (define-c-parse-rule lex-token-string ()
+  ;;happens to be same for yacc. FIXME:: proper names for things?
   (stringify (v lex-yacc-token)))
 
 #+nil
