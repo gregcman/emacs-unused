@@ -198,13 +198,78 @@ nil
 	     (setf end (character-section-start (yacc-parse-error-value c)))
 	     (go try-again)))))))
 
-(defparameter *c-data-0*
-  "typedef struct tagNode
+(defparameter *typedef-env* nil)
+
+(defun keep-parsing (string)
+  (let ((start 0))
+    (block exit
+      (loop
+	 (multiple-value-bind (cst length) (parsefoobar string :start start)
+	   (print (list cst length))
+	   (when (and length (zerop length))
+	     (return-from exit))
+	   (multiple-value-bind (value typedef-p) (cst-typedef-p cst)
+	     (when typedef-p
+	       (mapc
+		(lambda (x)
+		  (pushnew x *typedef-env* :test 'string=))
+		value)))
+	   (incf start length))))))
+(defparameter *c-data*
+  `("typedef struct tagNode
 {
     enum tagNode* entry;
 
     struct tagNode* next;
 } Node;
-")
+"
+    "typedef enum  {SUCCESS, FAIL} (*MathFunc)(float, int), bar ,foo;"))
+(defparameter *c-data-0*
+  (mapcar 'parsefoobar *c-data*)
+  )
+(defun are-typedefs ()
+  (mapcar 'cst-typedef *c-data-0*))
 
+(defun cst-typedef-p (&optional (CST (alexandria:random-elt *c-data-0*)))
+  "return a (values list-of-typedef'd-identifiers t) if its a typedef, (values nil nil) otherwise"
+  (match CST
+    ((list
+      :EXTERNAL_DECLARATION
+      1
+      (list
+       :DECLARATION
+       1
+       (list
+	:DECLARATION_SPECIFIERS
+	0
+	(list
+	 :STORAGE_CLASS_SPECIFIER
+	 0
+	 (character-section (data "typedef"))
+	 )
+	_)
 
+       (list*
+	:INIT_DECLARATOR_LIST _ names)
+       (character-section (data ";"))
+       ))
+     (values
+      (mapcar 'character-section-data
+	      (find-$direct_declarator0$ names))
+      t))))
+
+(defun find-$direct_declarator0$ (tree)
+  (let ((acc nil))
+    (mapc-tree
+     (lambda (node)
+       (match node
+	 ((list :DIRECT_DECLARATOR 0 value)
+	  (push value acc))))
+     tree)
+    acc))
+
+(defun mapc-tree (fun node)
+  (funcall fun node)
+  (when (consp node)
+    (mapc-tree fun (car node))
+    (mapc-tree fun (cdr node))))

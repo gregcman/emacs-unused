@@ -170,7 +170,14 @@
 				   `(progn (v lex-comment-end)
 					   ,(convert-to-token nil)))
 				  (:check-type  ;;:check-type
-				   `(quote ,(convert-to-token "IDENTIFIER"))
+				   `(cond (nil ;;FIXME::actually check for enums
+					   (quote ,(convert-to-token "ENUMERATION_CONSTANT")))
+					  ((member (print (stringy ,parse-result))
+						   *typedef-env* :test 'string=)
+					   (quote ,(convert-to-token "TYPEDEF_NAME")))
+					  (t
+					   (quote
+					    ,(convert-to-token "IDENTIFIER"))))
 				   ;;FIXME::detect typedefs and enums
 				   )
 				  (otherwise `(quote ,(convert-to-token what-fun)))))))))))
