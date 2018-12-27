@@ -18,3 +18,12 @@ only works if path actually exists."
      (uiop:unix-namestring
       truename))))
 
+(defun touch-cached-directories-and-files (path)
+  (let ((reroot (re-root-real-path path)))
+    (ensure-directories-exist reroot)
+    ;;if its a file, touch it
+    (unless (uiop:directory-pathname-p reroot)
+      (touch-file reroot))))
+
+(defun touch-file (&optional (path "/home/imac/install/src/touch.txt"))
+  (with-open-file (stream path :if-does-not-exist :create)))
