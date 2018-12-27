@@ -185,3 +185,29 @@ grep "typedef" * | wc -l
 in emacs/src yields 113 definitions. that's small enough to hand code if necessary?
 https://stackoverflow.com/questions/27871083/does-character-have-to-be-at-the-start-of-a-line-in-the-c-preprocessor
 https://gcc.gnu.org/onlinedocs/cpp/Tokenization.html#Tokenization
+
+custom c preprocessor
+- c macros -> tokens, concatentation
+- lots of C is not standard
+- #include is the same as copy and pastin the file where the include is
+- find the #defines and #undefs and #includes
+- ## token concatenation
+
+- cached lexing? for tokens? start and end of token and token type? but what about semantics?
+- use emacs-unused lex and yacc parser to find source locations
+- "#" starts at beggining of line or with whitespace before (progn (times whitespace) (v #\#)
+- lexing is slow? cache tokens?
+
+- toplevel c declaration needs:
+ - #defined macroexpansion
+ - #included files
+
+- replace c macros? track usage?
+- use pycparser in order to get an AST. using uiop:run-program, json, cl-json?
+
+- repeatedly remove tokens and make automatic changes? refactoring?
+automatically test combinations ofsimplicity in order to reduce complexity?
+remove something -> does it still parse? good. remove more, does it parse? no? put it back. brute force?
+
+cpp, pycparser, emacs-unused lexer+yacc -> source lines +[TODO custom preprocessor]
+automated refactoring?
