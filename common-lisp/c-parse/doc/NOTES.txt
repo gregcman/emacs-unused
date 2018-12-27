@@ -178,3 +178,8 @@ need custom C preprocessor? -> just locate the #includes, #pragmas, #defines rec
 -> vacietis a basis for a c preprocessor?
 
 https://www.irif.fr/~jch//software/cl-yacc/cl-yacc.pdf <- clyacc manual
+https://stackoverflow.com/questions/1102542/how-to-define-an-enumerated-type-enum-in-c
+https://stackoverflow.com/questions/14946540/passing-a-pointer-to-enum-to-a-function
+
+grep "typedef" * | wc -l
+in emacs/src yields 113 definitions. that's small enough to hand code if necessary?

@@ -129,21 +129,53 @@ nil
 	       ))
 	   )))))
 (defparameter *yacc-start-symbol* (yacc-symbol *yacc-start-string*))
-(defparameter *yacc-grammar-symbols* (tree-map 'yacc-symbol *yacc-grammar*))
+
+(defun aux-fun234 (n)
+  ;;;add a closure at the end of the grammar which lists the dump name and
+  ;;;choice count
+  (let ((name (first n))
+	(count 0))
+    ;;FIXME::keyword parameter strings are not upcase in the specification. may change?
+    (let ((dump-name (utility:keywordify (string-upcase name))))
+      (list* name
+	     (let ((acc nil))
+	       (dolist (item (rest n))
+		 (push
+		  (append item
+			  `((lambda (&rest rest)
+			      (list* ,dump-name ,count rest))))
+		  acc)
+		 (incf count))
+	       (nreverse acc))))))
+;;to output with grammar rule and form number from grammar
+(defparameter *yacc-grammar-info* (mapcar 'aux-fun234 *yacc-grammar*))
+
+(defparameter *yacc-grammar-symbols* (tree-map (lambda (x)
+						 (if (functionp x)
+						     x
+						     (yacc-symbol x)))
+					       *yacc-grammar-info*
+					       :max-depth 3))
 (defparameter *yacc-token-symbols* (tree-map 'yacc-symbol
 					     (append *yacc-token-strings*
 						     *yacc-terminal-chars*)))
 
-(defun tree-map (fn tree)
+(defun tree-map (fn tree &key (max-depth -1))
   "replace each list-element in tree with (funcall fn list-element)"
   ;;(tree-map (lambda (x) (* x x)) '(1 2 (2 3) . foo)) -> (1 4 (4 9) . FOO)
-  (cond ((atom tree) (funcall fn tree))
-	(t (cons (tree-map fn (first tree))
-		 (let ((rest (rest tree)))
-		   (if (and rest
-			    (listp rest))
-		       (tree-map fn rest)
-		       rest))))))
+  ;;FIXME:: max-depth is a hack to prevent the function from running too deep
+  (labels ((rec (tree depth)
+	     (cond ((atom tree) (funcall fn tree))
+		   (t (cons (let ((item (first tree)))
+			      (if (= depth max-depth)
+				  item
+				  (rec item (+ 1 depth))))
+			    (let ((rest (rest tree)))
+			      (if (and rest
+				       (listp rest))
+				  (rec rest depth)
+				  rest)))))))
+    (rec tree 0)))
 
 (utility:etouq
   `(define-parser *c*
