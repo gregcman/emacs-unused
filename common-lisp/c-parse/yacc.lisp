@@ -75,6 +75,20 @@
 		      (symbol (format nil "symbol%~a" x)))))
 	(intern string *yacc-package*))
       x))
+
+(progn
+  (struct-to-clos:struct->class
+   ;;represent a contiguous region of memory
+   (defstruct character-section
+     data
+     start
+     end))
+  (defun print-character-section (stream object)
+    (write (character-section-data object) :stream stream)
+    (format stream "<~a,~a>"
+	    (character-section-start object)
+	    (character-section-end object)))
+  (set-pprint-dispatch 'character-section 'print-character-section))
 #+nil
 "A  parser  consumes  the  output  of  a  lexer,  that  produces  a  stream  of  terminals.   CL-Yacc
 expects the lexer to be a function of no arguments (a
@@ -84,15 +98,17 @@ terminal symbol, and the value of the symbol, which will be passed to the action
 a production.  At the end of the input, the lexer should return
 nil
 ."
-(defun lex-for-cl-yacc (string)
-  (let ((start 0))
-    (lambda ()
-      (block out
-	(tagbody try-again
-	   (multiple-value-bind (result len)
-	       (parse-with-garbage 'lexer-foo string :start start)
-	     (incf start len)
-	     (when (zerop len)
+(defun lex-for-cl-yacc (string &key (start 0) (end nil))
+  (lambda ()
+    (block out
+      (tagbody try-again
+	 (multiple-value-bind (result len)
+	     (parse-with-garbage 'lexer-foo string :start start)
+	   (let ((old-pos start)
+		 (new-pos (+ start len)))
+	     (setf start new-pos)
+	     (when (or (and end (> new-pos end))
+		       (zerop len))
 	       (return-from out (values nil nil)))
 	     (destructuring-bind (string-thing ignorable yacc-token-type) result
 	       (declare (ignorable string-thing yacc-token-type ignorable))
@@ -104,9 +120,14 @@ nil
 		 (go try-again))
 	       (return-from out
 		 (values yacc-token-type
-			 string-thing))
+			 (make-character-section
+			  :data (stringy string-thing)
+			  :start old-pos
+			  :end new-pos)
+			 ))
 	       
-	       )))))))
+	       ))
+	   )))))
 (defparameter *yacc-start-symbol* (yacc-symbol *yacc-start-string*))
 (defparameter *yacc-grammar-symbols* (tree-map 'yacc-symbol *yacc-grammar*))
 (defparameter *yacc-token-symbols* (tree-map 'yacc-symbol
@@ -126,8 +147,32 @@ nil
 
 (utility:etouq
   `(define-parser *c*
-     (:start-symbol ,*yacc-start-symbol*)
+     (:start-symbol
+      ;;don't 
+      ;;,*yacc-start-symbol*
+      ,(yacc-symbol "external_declaration")
+      )
      (:terminals ,*yacc-token-symbols*)
      ,@*yacc-grammar-symbols*))
-(defun parsefoobar (string)
-  (yacc:parse-with-lexer (lex-for-cl-yacc string) *c*))
+(defun parsefoobar (string &key (start 0) (end nil))
+  (block out
+    (tagbody try-again
+       (handler-case
+	   (return-from out
+	     (values (yacc:parse-with-lexer (lex-for-cl-yacc string :start start :end end) *c*)
+		     end))
+	 (yacc-parse-error (c)
+	   (when (eq nil (first (yacc-parse-error-expected-terminals c)))
+	     (setf end (character-section-start (yacc-parse-error-value c)))
+	     (go try-again)))))))
+
+(defparameter *c-data-0*
+  "typedef struct tagNode
+{
+    enum tagNode* entry;
+
+    struct tagNode* next;
+} Node;
+")
+
+
