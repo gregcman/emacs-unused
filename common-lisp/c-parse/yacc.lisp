@@ -186,7 +186,7 @@ nil
       )
      (:terminals ,*yacc-token-symbols*)
      ,@*yacc-grammar-symbols*))
-(defun parsefoobar (string &key (start 0) (end nil))
+(defun parsefoobar (string &key (start 0) (end (length string)))
   (block out
     (tagbody try-again
        (handler-case
