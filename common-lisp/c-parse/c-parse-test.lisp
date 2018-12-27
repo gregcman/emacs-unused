@@ -172,8 +172,10 @@
 				  (:check-type  ;;:check-type
 				   `(cond (nil ;;FIXME::actually check for enums
 					   (quote ,(convert-to-token "ENUMERATION_CONSTANT")))
-					  ((member (print (stringy ,parse-result))
+					  ((member (stringy ,parse-result)
 						   *typedef-env* :test 'string=)
+					   ;;(print "what")
+					   ;;(print (stringy ,parse-result))
 					   (quote ,(convert-to-token "TYPEDEF_NAME")))
 					  (t
 					   (quote

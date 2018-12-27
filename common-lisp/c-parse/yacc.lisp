@@ -190,31 +190,45 @@ nil
   (block out
     (tagbody try-again
        (handler-case
-	   (return-from out
-	     (values (yacc:parse-with-lexer (lex-for-cl-yacc string :start start :end end) *c*)
-		     end))
+	   (progn	     
+	     (return-from out
+	       (if (= start end)
+		   (values nil end)
+		   (values (yacc:parse-with-lexer (lex-for-cl-yacc string :start start :end end) *c*)
+			   end))))
 	 (yacc-parse-error (c)
 	   (when (eq nil (first (yacc-parse-error-expected-terminals c)))
 	     (setf end (character-section-start (yacc-parse-error-value c)))
-	     (go try-again)))))))
+	     (go try-again))
+	   (print (list start end))
+	   (error c)
+	   #+nil
+	   (print "what???"))))))
 
 (defparameter *typedef-env* nil)
+(defparameter *parsed* nil)
 
+;;;FIXME:: use incremental lengths, not absolute string positions
 (defun keep-parsing (string)
-  (let ((start 0))
+  (setf *typedef-env* nil)
+  (let ((start
+	 0
+	  )
+	(end (length string)))
     (block exit
       (loop
-	 (multiple-value-bind (cst length) (parsefoobar string :start start)
-	   (print (list cst length))
-	   (when (and length (zerop length))
+	 (multiple-value-bind (cst where) (parsefoobar string :start start :end end)
+	   (when (and where (= where start)) ;;parsing failed
 	     (return-from exit))
+	   (push cst *parsed*)
 	   (multiple-value-bind (value typedef-p) (cst-typedef-p cst)
 	     (when typedef-p
 	       (mapc
 		(lambda (x)
 		  (pushnew x *typedef-env* :test 'string=))
 		value)))
-	   (incf start length))))))
+	   (setf start
+		 where))))))
 (defparameter *c-data*
   `("typedef struct tagNode
 {
@@ -273,3 +287,18 @@ nil
   (when (consp node)
     (mapc-tree fun (car node))
     (mapc-tree fun (cdr node))))
+
+(defun dump-cst (cst &optional (depth 0))
+  (typecase cst
+    (character-section
+     (write-char #\Space)
+     (write-string (character-section-data cst)))
+    (otherwise
+     (let ((items (cddr cst))
+	   (newdepth depth))
+       (unless (= 1 (list-length items))
+	 (incf newdepth 1)
+	 (terpri)
+	 (loop :repeat depth :do (write-char #\Space)))
+       (dolist (item items)
+	 (dump-cst item newdepth))))))
