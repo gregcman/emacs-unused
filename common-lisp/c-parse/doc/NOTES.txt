@@ -211,3 +211,9 @@ remove something -> does it still parse? good. remove more, does it parse? no? p
 
 cpp, pycparser, emacs-unused lexer+yacc -> source lines +[TODO custom preprocessor]
 automated refactoring?
+
+grep "??" *
+to find emacs c source trigraphs. are there none?
+emacs apparently written in C99 but I can't remember where it says this
+
+with-c-syntax? https://github.com/terminal625/with-c-syntax
