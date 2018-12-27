@@ -15,4 +15,5 @@
   :components 
   ((:file "c-parse")
    (:file "c-parse-test")
-   (:file "yacc")))
+   (:file "yacc")
+   (:file "preprocessor")))
