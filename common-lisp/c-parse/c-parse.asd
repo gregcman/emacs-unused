@@ -9,6 +9,7 @@
 	       #:utility
 	       #:yacc
 	       #:uncommon-lisp
+	       #:trivia
 	       #:fiveam)
   :serial t
   :components 
