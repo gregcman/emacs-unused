@@ -57,11 +57,11 @@ only works if path actually exists."
       (if (line-attach-p line)
 	  (push line lines-acc)
 	  (progn
-	    (push (attach lines-acc line)
+	    (push (attach (nreverse lines-acc) line)
 		  acc)
 	    (setf lines-acc nil))))
     (when lines-acc
-      (push (attach (butlast lines-acc)
+      (push (attach (nreverse (butlast lines-acc))
 		    (car (last lines-acc)))
 	    acc))
     (nreverse acc)))
@@ -73,6 +73,6 @@ only works if path actually exists."
 	    (count 0))
 	(dolist (line list)
 	  (when (< 0 count (1- len))
-	    (terpri output))
+	    (write-char #\Newline output))
 	  (write-string line output)
 	  (incf count))))))
