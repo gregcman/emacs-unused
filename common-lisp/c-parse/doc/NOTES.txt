@@ -262,3 +262,15 @@ section of text = (start-file-position end-file-position)
 
 - run a custom parser/tokenizer on FILENAME.directive.intervals to parse and tokenizer directives,
   caching the result somehow [figure out:TODO]
+
+- write a directive interpreter using the result of the custom parser/tokenizer. or maybe use with-c-syntax to simplify things?
+- write a lexer that uses the cached token locations and direc
+
+running make clean in /lib-src does not prevent src/ from being built.
+lib-src/ does not seem to be used by the emacs executable. ignore?
+
+; use /deps *.d files in order to find dependencies between files?
+; ignore standard C libs? libgnu.a? libgnu.a -> .so?
+; libgnu.a -> libgnu.so for dynamically loading in common lisp, and gradual replacement?
+; embed ecl with slime in emacs, then use that running emacs to debug itself?
+; libgnu.a = the architecture specific stuff? everything in / depends on /lib? <- c standard library? posix?
