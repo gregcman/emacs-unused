@@ -76,3 +76,50 @@ only works if path actually exists."
 	    (write-char #\Newline output))
 	  (write-string line output)
 	  (incf count))))))
+
+(define-c-parse-rule //comment ()
+  (progn-v #\/
+	   #\/
+	   (times (progn (! #\Newline)
+			 (v character)))))
+
+(define-c-parse-rule white-char-no-newline ()
+  (|| #\Space #\tab))
+(define-c-parse-rule whitespace-no-newline ()
+  (postimes white-char-no-newline)
+  nil)
+
+(define-c-parse-rule directive ()
+  (progn-v (times white-char-no-newline)
+	   #\#
+	   (stringy (times (progn (! #\Newline)
+				  (v character))))))
+
+(define-c-parse-rule thing ()
+  (|| directive
+      (progn
+	(|| whitespace-no-newline
+	    lex-yacc-multiline-comment
+	    //comment
+	    character)
+	nil)))
+;;FIXME:: non-consing esrap-liquid?
+(defparameter *file2*
+  (alexandria:read-file-into-string "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h"))
+(defparameter *acc* nil)
+(defun get-directives (&optional (text *file2*))
+  (catch 'out
+    (let ((start 0))
+      (loop (multiple-value-bind (directive place)
+		(parse-with-garbage 'thing text :start start)
+	      (when (eql 0 place)
+		(throw 'out nil))
+	      (when directive
+		(per-iter directive)
+		)
+	      (incf start place)))))
+  (values))
+(defun per-iter (directive)
+  (terpri)
+  (princ directive)
+  (push directive *acc*))
