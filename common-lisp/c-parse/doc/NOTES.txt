@@ -221,3 +221,25 @@ with-c-syntax? https://github.com/terminal625/with-c-syntax
 https://commandlinefanatic.com/cgi-bin/showarticle.cgi?article=art026
 cpp -v
 https://stackoverflow.com/questions/13079650/how-can-i-find-the-header-files-of-the-c-programming-language-in-linux
+
+dry run make:
+run make in the src/ directory
+make -n 
+
+emacs lib/ automatically generated? are these system libraries?
+emacs lib-src/ -> architecture dependent?
+
+/deps directories are dependencies?
+http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/#tldr
+
+running commands in /src
+make clean
+make -n
+
+search order?
+. = /src
+../lib/ = /lib
+
+Then system include files?
+
+#include_next?
