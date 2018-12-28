@@ -237,9 +237,28 @@ make clean
 make -n
 
 search order?
-. = /src
+. = /src -> therefore #include <config.h> and #include "config.h" should be the same
 ../lib/ = /lib
 
 Then system include files?
 
 #include_next?
+
+cache tokenization of files?
+
+FILENAME = file.c 
+FILENAME.bar = file.c.bar
+
+section of text = (start-file-position end-file-position) 
+
+- attach lines that end in / -> cache -> FILENAME.no_continued_lines
+- extract locations of directives.
+  not just lines because can span multiple lines with comments. -> FILENAME.directive.intervals
+  - each line containts (start end) of directive
+- use locations of directives to insert an equivalent amount of whitespace where directives are:
+  -> FILENAME.no_directives
+- run tokenizer on FILENAME.no_directives to cache token locations, -> FILENAME.token.intervals
+ - each line is (start end) token-type
+
+- run a custom parser/tokenizer on FILENAME.directive.intervals to parse and tokenizer directives,
+  caching the result somehow [figure out:TODO]
