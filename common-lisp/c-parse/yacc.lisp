@@ -1,5 +1,33 @@
 (in-package :c-parse)
 
+;;;;process the yacc.txt file
+(defparameter *yacc-txt-path* (merge-pathnames "yacc.txt" *path*))
+(defparameter *yacc-txt* (alexandria:read-file-into-string *yacc-txt-path*))
+(defparameter *yacc-txt2*
+  (file-lines-no-whitespace-lines 
+   *yacc-txt*))
+(defun seqs-to-string (seqs)
+  (apply 'concatenate 'string seqs))
+(defun split-yacc (&optional (yacc *yacc-txt2*))
+  (multiple-value-bind (first second) (%%-positions yacc)
+    (values (subseq yacc 0 first)
+	    (let ((value (subseq yacc (+ 1 first) second))
+		  acc)
+	      ;;intersperse newlines again and concatenate for esrap-liquid
+	      (dolist (val value)
+		(push val acc)
+		(push
+		 '(#\newline)
+		 acc))
+	      (seqs-to-string (nreverse acc))))))
+(defparameter *yacc-tokens-lines* nil)
+(defparameter *yacc-definitions* nil)
+(defun split-yacc2 ()
+  (setf (values *yacc-tokens-lines* *yacc-definitions*)
+	(split-yacc)))
+;;;;
+
+
 (define-c-parse-rule yacc-token-line ()
   (v "%token")
   (times (progn-v whitespace

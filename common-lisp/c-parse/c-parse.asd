@@ -15,6 +15,7 @@
   :components 
   ((:file "package")
    (:file "c-parse")
+   (:file "lex")
    (:file "c-parse-test")
    (:file "yacc")
    (:file "filesystem")
