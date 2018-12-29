@@ -1,13 +1,15 @@
 (in-package :c-parse)
 
 ;;;;process the yacc.txt file
-(defparameter *yacc-txt-path* (merge-pathnames "yacc.txt" *path*))
-(defparameter *yacc-txt* (alexandria:read-file-into-string *yacc-txt-path*))
-(defparameter *yacc-txt2*
+(defparameter *yacc-txt-path*
+  (merge-pathnames "yacc.txt" *path*))
+(deflazy *yacc-txt* ()
+  (alexandria:read-file-into-string *yacc-txt-path*))
+(deflazy *yacc-txt2* (*yacc-txt*)
   (file-lines-no-whitespace-lines 
    *yacc-txt*))
-(defun split-yacc (&optional (yacc *yacc-txt2*))
-  (multiple-value-bind (first second) (%%-positions yacc)
+(defun split-yacc (&optional (yacc (getfnc '*yacc-txt2*)))
+  (multiple-value-bind (first second) 
     (values (subseq yacc 0 first)
 	    (let ((value (subseq yacc (+ 1 first) second))
 		  acc)
@@ -18,12 +20,23 @@
 		 '(#\newline)
 		 acc))
 	      (%concatenate-string (nreverse acc))))))
-(defparameter *yacc-tokens-lines* nil)
-(defparameter *yacc-definitions* nil)
-(defun split-yacc2 ()
-  (setf (values *yacc-tokens-lines* *yacc-definitions*)
-	(split-yacc)))
-(split-yacc2) ;;FIXME::better load setup
+(deflazy %%-positions ((yacc *yacc-txt2*))
+  (multiple-value-list (%%-positions yacc)))
+(deflazy *yacc-tokens-lines* (%%-positions (yacc *yacc-txt2*))
+  (destructuring-bind (first second) %%-positions
+    (declare (ignore second))
+    (subseq yacc 0 first)))
+(deflazy *yacc-definitions* (%%-positions (yacc *yacc-txt2*))
+  (destructuring-bind (first second) %%-positions
+    (let ((value (subseq yacc (+ 1 first) second))
+	  acc)
+      ;;intersperse newlines again and concatenate for esrap-liquid
+      (dolist (val value)
+	(push val acc)
+	(push
+	 '(#\newline)
+	 acc))
+      (%concatenate-string (nreverse acc)))))
 ;;;;
 
 
@@ -36,23 +49,18 @@
   (progn-v whitespace
 	   lex-token-string))
 
-(defun foobar65 ()
-  "return (values #<list-of-tokens> start)"
-  (values (alexandria:flatten
-	   (mapcar (lambda (line)
-		     (parse-with-garbage 'yacc-token-line line))
-		   *yacc-tokens-lines*))
-	  (first
-	   (alexandria:flatten
-	    (mapcar (lambda (line)
-		      (parse-with-garbage 'yacc-start-line line))
-		    *yacc-tokens-lines*)))))
-
-(defparameter *yacc-token-strings* nil)
-(defparameter *yacc-start-string* nil)
-(defun foobar67 ()
-  (setf (values *yacc-token-strings* *yacc-start-string*)
-	(foobar65)))
+;;  "return (values #<list-of-tokens> start)"
+(deflazy *yacc-token-strings* (*yacc-tokens-lines*)
+  (alexandria:flatten
+   (mapcar (lambda (line)
+	     (parse-with-garbage 'yacc-token-line line))
+	   *yacc-tokens-lines*)))
+(deflazy *yacc-start-string* (*yacc-tokens-lines*)
+  (first
+   (alexandria:flatten
+    (mapcar (lambda (line)
+	      (parse-with-garbage 'yacc-start-line line))
+	    *yacc-tokens-lines*))))
 
 ;;FIXME::does not handle // comments
 (define-c-parse-rule yacc-whitespace-or-comment ()
@@ -83,16 +91,14 @@
 (define-c-parse-rule yacc-rules ()
   (times yacc-rule))
 
-(defun foobar68 ()
+(deflazy *yacc-grammar* (*yacc-definitions*)
   (parse-with-garbage 'yacc-rules *yacc-definitions*))
 
-(defparameter *yacc-grammar* nil)
-(defun foobar69 ()
-  (setf *yacc-grammar* (foobar68)))
-(foobar69) ;;FIXME::better building?
-
 (defparameter *yacc-terminal-chars* nil) ;;because characters are terminals. FIXME:documentation
-(defparameter *yacc-package* (make-package "YACC-SYMBOLS"))
+(defparameter *yacc-package*
+  (let ((name "YACC-SYMBOLS"))
+    (or (find-package name)
+	(make-package name))))
 (defun yacc-symbol (x)
   (if x
       (let ((string (etypecase x
@@ -157,7 +163,8 @@ nil
 	       
 	       ))
 	   )))))
-(defparameter *yacc-start-symbol* (yacc-symbol *yacc-start-string*))
+(deflazy *yacc-start-symbol* (*yacc-start-string*)
+  (yacc-symbol *yacc-start-string*))
 
 (defun aux-fun234 (n)
   ;;;add a closure at the end of the grammar which lists the dump name and
@@ -177,7 +184,8 @@ nil
 		 (incf count))
 	       (nreverse acc))))))
 ;;to output with grammar rule and form number from grammar
-(defparameter *yacc-grammar-info* (mapcar 'aux-fun234 *yacc-grammar*))
+(deflazy *yacc-grammar-info* (*yacc-grammar*)
+  (mapcar 'aux-fun234 *yacc-grammar*))
 
 (defun tree-map (fn tree &key (max-depth -1))
   "replace each list-element in tree with (funcall fn list-element)"
@@ -195,15 +203,17 @@ nil
 				  (rec rest depth)
 				  rest)))))))
     (rec tree 0)))
-(defparameter *yacc-grammar-symbols* (tree-map (lambda (x)
-						 (if (functionp x)
-						     x
-						     (yacc-symbol x)))
-					       *yacc-grammar-info*
-					       :max-depth 3))
-(defparameter *yacc-token-symbols* (tree-map 'yacc-symbol
-					     (append *yacc-token-strings*
-						     *yacc-terminal-chars*)))
+(deflazy *yacc-grammar-symbols* (*yacc-grammar-info*)
+  (tree-map (lambda (x)
+	      (if (functionp x)
+		  x
+		  (yacc-symbol x)))
+	    *yacc-grammar-info*
+	    :max-depth 3))
+(deflazy *yacc-token-symbols* (*yacc-token-strings*)
+  (tree-map 'yacc-symbol
+	    (append *yacc-token-strings*
+		    *yacc-terminal-chars*)))
 
 (defparameter *c* nil)
 (defun gen-parser-code ()
@@ -213,8 +223,8 @@ nil
       ;;,*yacc-start-symbol*
       ,(yacc-symbol "external_declaration")
       )
-     (:terminals ,*yacc-token-symbols*)
-     ,@*yacc-grammar-symbols*))
+     (:terminals ,(getfnc '*yacc-token-symbols*))
+     ,@(getfnc '*yacc-grammar-symbols*)))
 (defun parsefoobar (string &key (start 0) (end (length string)))
   (block out
     (tagbody try-again

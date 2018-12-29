@@ -1,8 +1,8 @@
 (in-package :c-parse)
 ;;;;Process the lex.txt file
-(deflazy *lex-txt-path* ()
+(defparameter *lex-txt-path*
   (merge-pathnames "lex.txt" *path*))
-(deflazy *lex-txt* (*lex-txt-path*)
+(deflazy *lex-txt* ()
   (alexandria:read-file-into-string *lex-txt-path*))
 (deflazy *lex-txt2* (*lex-txt*)
   (file-lines-no-whitespace-lines 
@@ -98,7 +98,7 @@
 (defparameter *syms* nil)
 (defun bar ()
   (let* ((processed-rules (getfnc '*processed-rules*))
-	 (iota (alexandria:iota processed-rules))
+	 (iota (alexandria:iota (list-length processed-rules)))
 	 (syms (mapcar 'sym-name iota)))
     (setf *syms* syms)
     `(progn       
