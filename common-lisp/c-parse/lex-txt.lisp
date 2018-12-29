@@ -1,42 +1,42 @@
 (in-package :c-parse)
-
-(fiveam:in-suite* c-parse)
-
-(defun run-tests ()
-  (let ((results (fiveam:run 'c-parse)))
-    (fiveam:explain! results)
-    (unless (fiveam:results-status results)
-      (error "Tests failed."))))
-
-(defun regex-character-class-to-esrap-liquid (regex)
-  (lex-rule-dump (parse-with-garbage 'lex-rule-character-class regex)))
-(fiveam:test what
-  (fiveam:is (char= (c-parse-parse 'lex-char-or-escaped-char "\\\\")
-		    #\\))
-  (fiveam:is (char= (c-parse-parse 'lex-char-or-escaped-char "\\t")
-		    #\Tab))
-  (fiveam:is (string= (c-parse-parse 'lex-string "\"234\\t234\"")
-		      "234	234"))
-  (fiveam:is (string= (char-to-escaped-char #\Newline)
-		      "\\n"))
-  (fiveam:is (string= (char-to-escaped-char #\s)
-		      "s"))
-  (fiveam:is (char= (parse-with-garbage
-		     (regex-character-class-to-esrap-liquid "[^a-zA-Z_0-9]")
-		     "$"))
-	     #\$)
-  (fiveam:is (char= (parse-with-garbage
-		     (regex-character-class-to-esrap-liquid "[a-zA-Z_0-9]")
-		     "S"))
-	     #\S))
+;;;;Process the lex.txt file
+(defparameter *lex-txt-path* (merge-pathnames "lex.txt" *path*))
+(defparameter *lex-txt* (alexandria:read-file-into-string *lex-txt-path*))
+(defparameter *lex-txt2*
+  (file-lines-no-whitespace-lines 
+   *lex-txt*))
+;;https://docs.oracle.com/cd/E19504-01/802-5880/lex-6/index.html
+;;The mandatory rules section opens with the delimiter %%.
+;;If a routines section follows, another %% delimiter ends the rules section.
+;;The %% delimiters must be entered at the beginning of a line, that is, without leading blanks.
+;;If there is no second delimiter, the rules section is presumed to continue to the end of the program. 
+(defun split-lex (&optional (lex *lex-txt2*))
+  ;;divide the lex.txt into terminals and patterns.
+  ;;ignore the c code for check_type and comment, instead hand-coding those
+  (values
+   (let (;;this is where c code starts and definitions
+	 (first-end (position "%{" lex :test 'string=))
+	 ;;skip over the variables at the beginning for the lex program
+	 (start (position-if (lambda (str)
+			       (not (char= (aref str 0)
+					   #\%)))
+			     lex)))
+     ;;terminals, called definitions
+     (subseq lex start first-end))
+   (multiple-value-bind (first-end second-end) (%%-positions lex)
+     ;;patterns, called rules
+     (subseq lex (+ 1 first-end) second-end))))
+;;http://dinosaur.compilertools.net/lex/index.html <- detailed explanation of lex file format
+(defparameter *lex-definitions-lines* nil)
+(defparameter *lex-rules-lines* nil)
+(defun split-lex2 (&optional (lex *lex-txt2*))
+  (setf (values *lex-definitions-lines*
+		*lex-rules-lines*)
+	(split-lex lex)))
+;;;;
 
 (defmacro parse-with-garbage (rule text &rest rest &key &allow-other-keys)
   `(c-parse-parse ,rule ,text :junk-allowed t ,@rest))
-
-(defun test-parse-rules (&optional (rules *lex-rules-lines*))
-  (mapcar (lambda (text)
-	    (parse-with-garbage 'lex-rule-start text))
-	  rules))
 
 (define-c-parse-rule lex-line-def ()
   (cap :def-name (v lex-token-string))
@@ -68,46 +68,6 @@
 	    (subseq string (1+ end)
 		    last-bracket)))))
 
-;;run split-lex-2 to set the dynamic variables
-(defun test-lines (&optional (rule 'lex-rule-start) (rules *lex-rules-lines*))
-  (let ((correct 0)
-	(wrong 0))
-    (terpri)
-    (mapc (lambda (text)
-	    (let* ((obj (parse-with-garbage rule text))
-		   (a (princ-to-string 
-		       obj)))
-	      (flet ((dump ()
-		       (princ a)
-		       (terpri)
-		       (princ text)
-		       (terpri)))
-		(cond ((string-a-prefix-b-p
-			a
-			text)
-		       (progn
-			 (format t "~%same:~%") 
-			 (dump))
-		       (incf correct))
-		      (t
-		       (incf wrong)
-		       (format t "~%DIFFERENT:~%")
-		       (dump)
-	;	       (inspect obj)
-		       )))))
-	  rules)
-    (format t "correct: ~a wrong: ~a~%" correct wrong)
-    (list wrong correct)))
-
-(defun teststuff ()
-  (test-lines)
-  (test-lines 'lex-rule-start
-	      (mapcar 'spec-lex-rule-rule
-		      (mapcar
-		       (lambda (item)
-			 (parse-with-garbage 'lex-line-def item))
-		       *lex-definitions-lines*))))
-
 ;;(string-a-prefix-b-p "a" "ab") -> T
 ;;(string-a-prefix-b-p "ac" "ab") -> 
 (defun string-a-prefix-b-p (a b)
@@ -128,10 +88,6 @@
   (split-yacc2)
   (values))
 (setup) ;;fixme:: better load setup
-(defun test-things (&optional not-pretty)
-  (let ((*print-raw* not-pretty))
-    (teststuff))
-  (values))
 
 (defparameter *processed-definitions* (mapcar 'split-lex-line-def
 					      *lex-definitions-lines*))

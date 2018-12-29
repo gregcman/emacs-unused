@@ -1,45 +1,4 @@
 (in-package :c-parse) 
-
-;;;;Process the lex.txt file
-(defparameter *lex-txt-path* (merge-pathnames "lex.txt" *path*))
-(defparameter *lex-txt* (alexandria:read-file-into-string *lex-txt-path*))
-(defparameter *lex-txt2*
-  (file-lines-no-whitespace-lines 
-   *lex-txt*))
-;;https://docs.oracle.com/cd/E19504-01/802-5880/lex-6/index.html
-;;The mandatory rules section opens with the delimiter %%.
-;;If a routines section follows, another %% delimiter ends the rules section.
-;;The %% delimiters must be entered at the beginning of a line, that is, without leading blanks.
-;;If there is no second delimiter, the rules section is presumed to continue to the end of the program. 
-(defun split-lex (&optional (lex *lex-txt2*))
-  ;;divide the lex.txt into terminals and patterns.
-  ;;ignore the c code for check_type and comment, instead hand-coding those
-  (values
-   (let (;;this is where c code starts and definitions
-	 (first-end (position "%{" lex :test 'string=))
-	 ;;skip over the variables at the beginning for the lex program
-	 (start (position-if (lambda (str)
-			       (not (char= (aref str 0)
-					   #\%)))
-			     lex)))
-     ;;terminals, called definitions
-     (subseq lex start first-end))
-   (multiple-value-bind (first-end second-end) (%%-positions lex)
-     ;;patterns, called rules
-     (subseq lex (+ 1 first-end) second-end))))
-;;http://dinosaur.compilertools.net/lex/index.html <- detailed explanation of lex file format
-(defparameter *lex-definitions-lines* nil)
-(defparameter *lex-rules-lines* nil)
-(defun split-lex2 (&optional (lex *lex-txt2*))
-  (setf (values *lex-definitions-lines*
-		*lex-rules-lines*)
-	(split-lex lex)))
-;;;;
-
-
-
-
-
 ;;;;implementation of the lex lexer
 ;;http://dinosaur.compilertools.net/lex/index.html
 ;;" \ [ ] ^ - ? . * + | ( ) $ / { } % < > ;;operators that need to be escaped
