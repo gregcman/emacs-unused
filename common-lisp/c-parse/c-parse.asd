@@ -16,4 +16,5 @@
   ((:file "c-parse")
    (:file "c-parse-test")
    (:file "yacc")
+   (:file "filesystem")
    (:file "preprocessor")))
