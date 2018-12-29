@@ -41,3 +41,40 @@
 (define-c-parse-rule lex-token-string ()
   ;;happens to be same for yacc. FIXME:: proper names for things?
   (stringify (v lex-yacc-token)))
+
+(defmacro parse-with-garbage (rule text &rest rest &key &allow-other-keys)
+  `(c-parse-parse ,rule ,text :junk-allowed t ,@rest))
+
+(defun stringy (tree)
+  ;;turn a tree of nil's and characters produced by esrap-liquid into a
+  ;;string
+  (with-output-to-string (stream)
+    (labels ((rec (node)
+	       (when node
+		 (if (atom node)
+		     (princ node stream)
+		     (progn (rec (car node))
+			    (rec (cdr node)))))))
+      (rec tree))))
+
+(defun concatenate-string (&rest rest)
+  (%concatenate-string rest))
+(defun %concatenate-string (rest)
+  (apply 'concatenate 'string rest))
+
+;;;yacc and lex comments are the same?
+(define-c-parse-rule lex-yacc-multiline-comment ()
+  (progn-v
+   "/*"
+   lex-comment-end))
+(define-c-parse-rule lex-comment-end-token ()
+  (progn (v #\*)
+	 (v #\/)))
+(define-c-parse-rule lex-comment-end ()
+  (prog1 (postimes
+	  (progn (! lex-comment-end-token)
+		 (v character))
+	  )
+    (v lex-comment-end-token))
+   nil
+  )

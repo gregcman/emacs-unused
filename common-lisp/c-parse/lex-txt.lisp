@@ -1,8 +1,10 @@
 (in-package :c-parse)
 ;;;;Process the lex.txt file
-(defparameter *lex-txt-path* (merge-pathnames "lex.txt" *path*))
-(defparameter *lex-txt* (alexandria:read-file-into-string *lex-txt-path*))
-(defparameter *lex-txt2*
+(deflazy *lex-txt-path* ()
+  (merge-pathnames "lex.txt" *path*))
+(deflazy *lex-txt* (*lex-txt-path*)
+  (alexandria:read-file-into-string *lex-txt-path*))
+(deflazy *lex-txt2* (*lex-txt*)
   (file-lines-no-whitespace-lines 
    *lex-txt*))
 ;;https://docs.oracle.com/cd/E19504-01/802-5880/lex-6/index.html
@@ -10,34 +12,25 @@
 ;;If a routines section follows, another %% delimiter ends the rules section.
 ;;The %% delimiters must be entered at the beginning of a line, that is, without leading blanks.
 ;;If there is no second delimiter, the rules section is presumed to continue to the end of the program. 
-(defun split-lex (&optional (lex *lex-txt2*))
-  ;;divide the lex.txt into terminals and patterns.
-  ;;ignore the c code for check_type and comment, instead hand-coding those
-  (values
-   (let (;;this is where c code starts and definitions
-	 (first-end (position "%{" lex :test 'string=))
-	 ;;skip over the variables at the beginning for the lex program
-	 (start (position-if (lambda (str)
-			       (not (char= (aref str 0)
-					   #\%)))
-			     lex)))
-     ;;terminals, called definitions
-     (subseq lex start first-end))
-   (multiple-value-bind (first-end second-end) (%%-positions lex)
-     ;;patterns, called rules
-     (subseq lex (+ 1 first-end) second-end))))
-;;http://dinosaur.compilertools.net/lex/index.html <- detailed explanation of lex file format
-(defparameter *lex-definitions-lines* nil)
-(defparameter *lex-rules-lines* nil)
-(defun split-lex2 (&optional (lex *lex-txt2*))
-  (setf (values *lex-definitions-lines*
-		*lex-rules-lines*)
-	(split-lex lex)))
-(split-lex2) ;;fixme:: better load setup
-;;;;
 
-(defmacro parse-with-garbage (rule text &rest rest &key &allow-other-keys)
-  `(c-parse-parse ,rule ,text :junk-allowed t ,@rest))
+;;divide the lex.txt into terminals and patterns.
+;;ignore the c code for check_type and comment, instead hand-coding those
+;;http://dinosaur.compilertools.net/lex/index.html <- detailed explanation of lex file format
+(deflazy *lex-definitions-lines* ((lex *lex-txt2*))
+  (let (;;this is where c code starts and definitions
+	(first-end (position "%{" lex :test 'string=))
+	;;skip over the variables at the beginning for the lex program
+	(start (position-if (lambda (str)
+			      (not (char= (aref str 0)
+					  #\%)))
+			    lex)))
+    ;;terminals, called definitions
+    (subseq lex start first-end)))
+(deflazy *lex-rules-lines* ((lex *lex-txt2*))
+  (multiple-value-bind (first-end second-end) (%%-positions lex)
+    ;;patterns, called rules
+    (subseq lex (+ 1 first-end) second-end)))
+;;;;
 
 (define-c-parse-rule lex-line-def ()
   (cap :def-name (v lex-token-string))
@@ -84,8 +77,9 @@
       (return-from string-a-prefix-b-p nil)))
   t)
 
-(defparameter *processed-definitions* (mapcar 'split-lex-line-def
-					      *lex-definitions-lines*))
+(deflazy *processed-definitions* (*lex-definitions-lines*)
+  (mapcar 'split-lex-line-def
+	  *lex-definitions-lines*))
 (defun pipeline (&optional (def "hello [90]"))
   (compile-to-esrap-liquid (split-lex-line-def def)))
 (defun compile-to-esrap-liquid (item)
@@ -97,12 +91,14 @@
   `(progn
      ,@(mapcar
 	'compile-to-esrap-liquid
-	*processed-definitions*)))
-(defparameter *processed-rules* (mapcar 'split-lex-line-rule
-					*lex-rules-lines*))
+	(getfnc '*processed-definitions*))))
+(deflazy *processed-rules* (*lex-rules-lines*)
+  (mapcar 'split-lex-line-rule
+	  *lex-rules-lines*))
 (defparameter *syms* nil)
 (defun bar ()
-  (let* ((iota (alexandria:iota (length *processed-rules*)))
+  (let* ((processed-rules (getfnc '*processed-rules*))
+	 (iota (alexandria:iota processed-rules))
 	 (syms (mapcar 'sym-name iota)))
     (setf *syms* syms)
     `(progn       
@@ -135,7 +131,7 @@
 				   )
 				  (otherwise `(quote ,(convert-to-token what-fun)))))))))))
 		 syms
-		 *processed-rules*)
+		 processed-rules)
        (define-c-parse-rule lexer-foo ()
 	 ;;why? it was taking around 13 to 20 seconds to compile
 	 ;;most-full-parse
@@ -197,18 +193,6 @@
 (define-c-parse-rule reimplemented-most-full-parse (syms)
   (esrap-liquid::most-full-parse2 syms))
 
-(defun stringy (tree)
-  ;;turn a tree of nil's and characters produced by esrap-liquid into a
-  ;;string
-  (with-output-to-string (stream)
-    (labels ((rec (node)
-	       (when node
-		 (if (atom node)
-		     (princ node stream)
-		     (progn (rec (car node))
-			    (rec (cdr node)))))))
-      (rec tree))))
-
 (defun sym-name (x)
   (find-lex-symbol (format nil "LEX-GENERATED~a" x)))
 
@@ -218,22 +202,7 @@
   (print "loading rules:")
   (eval (bar)))
 
-;;;yacc and lex comments are the same?
-(define-c-parse-rule lex-yacc-multiline-comment ()
-  (progn-v
-   "/*"
-   lex-comment-end))
-(define-c-parse-rule lex-comment-end-token ()
-  (progn (v #\*)
-	 (v #\/)))
-(define-c-parse-rule lex-comment-end ()
-  (prog1 (postimes
-	  (progn (! lex-comment-end-token)
-		 (v character))
-	  )
-    (v lex-comment-end-token))
-   nil
-  )
+;;;;
 (defun parse-lex-def (text)
   (parse-with-garbage 'ad-hoc-lex-read-file text))
 
@@ -268,51 +237,3 @@
   (progm #\(
 	 lex-token-string
 	 #\)))
-;;(string-thing lex-token-type yacc-token-type)
-(defun lex (string &optional (stream *standard-output*))
-  (let ((start 0))
-    (loop
-       (multiple-value-bind (result len)
-	   (parse-with-garbage 'lexer-foo string :start start)
-	 (when (zerop len)
-	   (return))
-	 (destructuring-bind (string-thing ignorable yacc-token-type) result
-	   (declare (ignorable string-thing yacc-token-type ignorable))
-	   ;;(write-char (char-code-object yacc-token-type) stream)
-	   (princ (stringy (car result)) stream)
-	   )
-	 (incf start len)))))
-
-(defun lex2 (string)
-  (with-output-to-string (stream)
-    (lex string stream)))
-
-(defparameter *file1* (alexandria:read-file-into-string
-		       #+nl
-		       "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
-		       "/home/imac/install/src/pycparser-master/examples/c_files/hash.c"))
-
-;;FIXME:: hack -> using unicode characters to represent tokens, thus simplifyng tokens
-#+nil
-(progn
-  (defparameter *char-code-pointer* nil)
-  (defparameter *objects-to-characters* nil)
-  (defun reset-char-code-object-table ()
-    (setf *char-code-pointer* 32)
-    (setf *objects-to-characters* (make-hash-table :test 'equal)))
-  (reset-char-code-object-table)
-  (defun char-code-object (obj)
-    (let ((there? (gethash obj *objects-to-characters*)))
-      (unless there?
-	(let ((new (code-char *char-code-pointer*)))
-	  (setf (gethash obj *objects-to-characters*)
-		new)
-	  (setf there? new))
-	(incf *char-code-pointer*))
-      there?)))
-
-(define-c-parse-rule left-recursion? ()
-  (progn-v left-recursion?
-	   #\(
-	   character
-	   #\)))

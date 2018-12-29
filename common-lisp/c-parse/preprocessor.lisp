@@ -17,9 +17,9 @@
 	""
 	(subseq str 0 (1- len)))))
 (defun attach (lines end)
-  (apply 'concatenate 'string
-	 (nconc (mapcar 'all-but-last-char-string lines)
-		(list end))))
+  (%concatenate-string
+   (nconc (mapcar 'all-but-last-char-string lines)
+	  (list end))))
 (defun join-lines-list (&optional (file-lines '("bar\\" "foo")))
   (let ((acc nil)
 	(lines-acc))

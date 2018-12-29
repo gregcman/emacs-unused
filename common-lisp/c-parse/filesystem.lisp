@@ -30,8 +30,6 @@ only works if path actually exists."
 (defun touch-file (&optional (path "/home/imac/install/src/touch.txt"))
   (with-open-file (stream path :if-does-not-exist :create)))
 
-(defun concatenate-string (&rest rest)
-  (apply 'concatenate 'string rest))
 ;;be able to make a derived filename
 (defparameter *path* "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h")
 (defun pathname-name-and-type (&optional (path *path*))

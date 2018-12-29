@@ -10,7 +10,8 @@
 	       #:yacc
 	       #:uncommon-lisp
 	       #:trivia
-	       #:fiveam)
+	       #:fiveam
+	       #:deflazy)
   :serial t
   :components 
   ((:file "package")
@@ -20,4 +21,5 @@
    (:file "yacc")
    (:file "filesystem")
    (:file "preprocessor")
-   (:file "test")))
+   ;;(:file "test")
+   ))

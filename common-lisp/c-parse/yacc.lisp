@@ -6,8 +6,6 @@
 (defparameter *yacc-txt2*
   (file-lines-no-whitespace-lines 
    *yacc-txt*))
-(defun seqs-to-string (seqs)
-  (apply 'concatenate 'string seqs))
 (defun split-yacc (&optional (yacc *yacc-txt2*))
   (multiple-value-bind (first second) (%%-positions yacc)
     (values (subseq yacc 0 first)
@@ -19,7 +17,7 @@
 		(push
 		 '(#\newline)
 		 acc))
-	      (seqs-to-string (nreverse acc))))))
+	      (%concatenate-string (nreverse acc))))))
 (defparameter *yacc-tokens-lines* nil)
 (defparameter *yacc-definitions* nil)
 (defun split-yacc2 ()
@@ -91,6 +89,7 @@
 (defparameter *yacc-grammar* nil)
 (defun foobar69 ()
   (setf *yacc-grammar* (foobar68)))
+(foobar69) ;;FIXME::better building?
 
 (defparameter *yacc-terminal-chars* nil) ;;because characters are terminals. FIXME:documentation
 (defparameter *yacc-package* (make-package "YACC-SYMBOLS"))
@@ -334,3 +333,8 @@ nil
 	 (loop :repeat depth :do (write-char #\Space)))
        (dolist (item items)
 	 (dump-cst item newdepth))))))
+
+(defun start-up ()
+  (eval-lexer)
+  (eval (gen-parser-code))
+  (values))
