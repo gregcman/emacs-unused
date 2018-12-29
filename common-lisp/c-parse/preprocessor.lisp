@@ -126,22 +126,36 @@ only works if path actually exists."
   (princ directive) (print (list start end))
   (push directive *acc*))
 
+(defun concatenate-string (&rest rest)
+  (apply 'concatenate 'string rest))
+;;be able to make a derived filename
 (defparameter *path* "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h")
 (defun pathname-name-and-type (&optional (path *path*))
   (let ((name (pathname-name path))
 	(type (pathname-type path)))
     (if (or name type)
-	(concatenate 'string
-		     name
-		     (if type
-			 "."
-			 nil)
-		     type))))
+	(concatenate-string
+	 name
+	 (if type
+	     "."
+	     nil)
+	 type))))
 (defun get-directory (&optional (path *path*))
   (make-pathname :directory (pathname-directory path)))
-(defun add-file-extension (extension &optional (path *path*))
+(defun add-file-extension (extension-fun &optional (path *path*))
   (let ((dir (get-directory path))
 	(file (pathname-name-and-type path)))
     (merge-pathnames
-     (concatenate 'string file extension)
+     (concatenate-string (funcall extension-fun file))
      dir)))
+
+;;(ADD-FILE-SUFFIX "~") lisp.h -> ~lisp.h
+(defun add-file-suffix (suffix &optional (path *path*))
+  (add-file-extension (lambda (x)
+			(concatenate-string suffix x))
+		      path))
+;;(ADD-FILE-SUFFIX ".directive") lisp.h -> lisp.h.directive
+(defun add-file-prefix (prefix &optional (path *path*))
+  (add-file-extension (lambda (x)
+			(concatenate-string x prefix))
+		      path))
