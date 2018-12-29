@@ -1,4 +1,4 @@
-(in-package :test)
+(in-package :c-parse)
 
 (fiveam:in-suite* c-parse)
 

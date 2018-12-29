@@ -25,6 +25,7 @@
 (defun split-yacc2 ()
   (setf (values *yacc-tokens-lines* *yacc-definitions*)
 	(split-yacc)))
+(split-yacc2) ;;FIXME::better load setup
 ;;;;
 
 
@@ -104,19 +105,20 @@
 	(intern string *yacc-package*))
       x))
 
-(progn
-  (struct-to-clos:struct->class
-   ;;represent a contiguous region of memory
-   (defstruct character-section
-     data
-     start
-     end))
-  (defun print-character-section (stream object)
-    (write (character-section-data object) :stream stream)
-    (format stream "<~a,~a>"
-	    (character-section-start object)
-	    (character-section-end object)))
-  (set-pprint-dispatch 'character-section 'print-character-section))
+(utility:eval-always
+  (progn
+    (struct-to-clos:struct->class
+     ;;represent a contiguous region of memory
+     (defstruct character-section
+       data
+       start
+       end))
+    (defun print-character-section (stream object)
+      (write (character-section-data object) :stream stream)
+      (format stream "<~a,~a>"
+	      (character-section-start object)
+	      (character-section-end object)))
+    (set-pprint-dispatch 'character-section 'print-character-section)))
 #+nil
 "A  parser  consumes  the  output  of  a  lexer,  that  produces  a  stream  of  terminals.   CL-Yacc
 expects the lexer to be a function of no arguments (a
@@ -178,16 +180,6 @@ nil
 ;;to output with grammar rule and form number from grammar
 (defparameter *yacc-grammar-info* (mapcar 'aux-fun234 *yacc-grammar*))
 
-(defparameter *yacc-grammar-symbols* (tree-map (lambda (x)
-						 (if (functionp x)
-						     x
-						     (yacc-symbol x)))
-					       *yacc-grammar-info*
-					       :max-depth 3))
-(defparameter *yacc-token-symbols* (tree-map 'yacc-symbol
-					     (append *yacc-token-strings*
-						     *yacc-terminal-chars*)))
-
 (defun tree-map (fn tree &key (max-depth -1))
   "replace each list-element in tree with (funcall fn list-element)"
   ;;(tree-map (lambda (x) (* x x)) '(1 2 (2 3) . foo)) -> (1 4 (4 9) . FOO)
@@ -204,8 +196,18 @@ nil
 				  (rec rest depth)
 				  rest)))))))
     (rec tree 0)))
+(defparameter *yacc-grammar-symbols* (tree-map (lambda (x)
+						 (if (functionp x)
+						     x
+						     (yacc-symbol x)))
+					       *yacc-grammar-info*
+					       :max-depth 3))
+(defparameter *yacc-token-symbols* (tree-map 'yacc-symbol
+					     (append *yacc-token-strings*
+						     *yacc-terminal-chars*)))
 
-(utility:etouq
+(defparameter *c* nil)
+(defun gen-parser-code ()
   `(define-parser *c*
      (:start-symbol
       ;;don't 
@@ -267,6 +269,8 @@ nil
 "
     "typedef enum  {SUCCESS, FAIL} (*MathFunc)(float, int), bar ,foo;"))
 (defparameter *c-data-0*
+  nil
+  #+nil
   (mapcar 'parsefoobar *c-data*)
   )
 (defun are-typedefs ()

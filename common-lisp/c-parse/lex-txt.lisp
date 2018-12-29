@@ -33,6 +33,7 @@
   (setf (values *lex-definitions-lines*
 		*lex-rules-lines*)
 	(split-lex lex)))
+(split-lex2) ;;fixme:: better load setup
 ;;;;
 
 (defmacro parse-with-garbage (rule text &rest rest &key &allow-other-keys)
@@ -82,12 +83,6 @@
 		   (aref b index))
       (return-from string-a-prefix-b-p nil)))
   t)
-
-(defun setup ()
-  (split-lex2)
-  (split-yacc2)
-  (values))
-(setup) ;;fixme:: better load setup
 
 (defparameter *processed-definitions* (mapcar 'split-lex-line-def
 					      *lex-definitions-lines*))
