@@ -274,3 +274,40 @@ lib-src/ does not seem to be used by the emacs executable. ignore?
 ; libgnu.a -> libgnu.so for dynamically loading in common lisp, and gradual replacement?
 ; embed ecl with slime in emacs, then use that running emacs to debug itself?
 ; libgnu.a = the architecture specific stuff? everything in / depends on /lib? <- c standard library? posix?
+
+; tokenize and parse emacs C code? when there is an undefined function or macro assume that it is
+; part of the C standard library or libgnu.a.
+
+go back and forth between pycparser, emacs-unused lexer and such?
+use positions of headers and external declarations and such which is necessary to
+compile an individual C function and dynamically load it, and test a whether it can substitute
+by setting function pointers and wrapping around all[?] functions?
+
+determine whether macro definition is expression, number? is it possible? keep track of tokens?
+
+be able to automatically generate indirection wrappers for all the src/ emacs functions.
+- static function pointer variable with generated non-conflicting name, which is set to point
+  to the original code
+- wrapper function with same name as old function and same arguments
+ - just calls the static function pointer with the args it is passed
+- original code under new function name
+
+why? by setting the static function pointer, the emacs C functions can be gradually replaced.
+- embed ecl, pass ecl function pointer locations? use cffi ecl dynamic library to load a single function,
+  get the function pointer, and set the emacs static function pointer variable to the new function.
+  If emacs is still working, incremental C -> lisp can start?
+  - loading a single function: use directive definitions, form numbers, included headers to write to a file.
+  then compile the function to a shared libary, load shared library into CFFI
+  - porting to lisp: same process as above? but pass the result of cpp to pycparser that parses the C code.
+    then dump the C code and compile to shared library and see if it still works? if it works, then the
+    pycparser output can be translated to lisp code utilizing CFFI. CFFI needs cffi-libffi in order to pass
+    structs to C
+  - pycparser python script -> JSON? JSON -> LISP some sort of ast? ast -> compile to C,
+    compile to CFFI in lisp?
+  - once CFFI code runs everything? then can start replacing definitions with lisp definitions? 
+
+convert C directives to if statements? see if #defines can be variables?
+strength reduction? automatic simplification? algorithm: keep removing things,
+if it still parsers/runs its good? passing emacs tests?
+
+use tests thoroughly? documentation?
