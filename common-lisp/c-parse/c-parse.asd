@@ -13,7 +13,8 @@
 	       #:fiveam)
   :serial t
   :components 
-  ((:file "c-parse")
+  ((:file "package")
+   (:file "c-parse")
    (:file "c-parse-test")
    (:file "yacc")
    (:file "filesystem")
