@@ -2,7 +2,7 @@
 
 ;;;;Make a subdirectory that mimics the real directories
 
-(defparameter *cache* "/home/imac/install/src/filecache")
+(defparameter *cache* (merge-pathnames "shadowroot/" *path*))
 (defun re-root-real-path (path &optional (base *cache*))
   "change the root of path to base, making sure that therer can be no outside reference.
 only works if path actually exists."
@@ -11,6 +11,15 @@ only works if path actually exists."
 	(error "does not exist ~s" path))
     (unless (uiop:absolute-pathname-p path)
       (error "not absolute:~s" path))
+
+    ;;FIXME::hack?
+    (let ((base-directory (pathname-directory base))
+	  (path-directory  (pathname-directory path)))
+      (make-pathname :directory
+		     (append base-directory (rest path-directory))
+		     :name (pathname-name path)
+		     :type (pathname-type path)))
+    #+nil
     (concatenate
      'string
      base
@@ -31,8 +40,8 @@ only works if path actually exists."
   (with-open-file (stream path :if-does-not-exist :create)))
 
 ;;be able to make a derived filename
-(defparameter *path* "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h")
-(defun pathname-name-and-type (&optional (path *path*))
+(defparameter *testpath* "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h")
+(defun pathname-name-and-type (&optional (path *testpath*))
   (let ((name (pathname-name path))
 	(type (pathname-type path)))
     (if (or name type)
@@ -42,9 +51,9 @@ only works if path actually exists."
 	     "."
 	     nil)
 	 type))))
-(defun get-directory (&optional (path *path*))
+(defun get-directory (&optional (path *testpath*))
   (make-pathname :directory (pathname-directory path)))
-(defun add-file-extension (extension-fun &optional (path *path*))
+(defun add-file-extension (extension-fun &optional (path *testpath*))
   (let ((dir (get-directory path))
 	(file (pathname-name-and-type path)))
     (merge-pathnames
@@ -52,12 +61,12 @@ only works if path actually exists."
      dir)))
 
 ;;(ADD-FILE-SUFFIX "~") lisp.h -> ~lisp.h
-(defun add-file-suffix (suffix &optional (path *path*))
+(defun add-file-suffix (suffix &optional (path *testpath*))
   (add-file-extension (lambda (x)
 			(concatenate-string suffix x))
 		      path))
 ;;(ADD-FILE-SUFFIX ".directive") lisp.h -> lisp.h.directive
-(defun add-file-prefix (prefix &optional (path *path*))
+(defun add-file-prefix (prefix &optional (path *testpath*))
   (add-file-extension (lambda (x)
 			(concatenate-string x prefix))
 		      path))
