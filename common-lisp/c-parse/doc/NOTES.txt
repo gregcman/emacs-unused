@@ -311,3 +311,5 @@ strength reduction? automatic simplification? algorithm: keep removing things,
 if it still parsers/runs its good? passing emacs tests?
 
 use tests thoroughly? documentation?
+
+lex headers correctly?

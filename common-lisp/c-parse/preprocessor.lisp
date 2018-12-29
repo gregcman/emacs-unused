@@ -106,6 +106,8 @@ only works if path actually exists."
 ;;FIXME:: non-consing esrap-liquid?
 (defparameter *file2*
   (alexandria:read-file-into-string "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h"))
+(defparameter *file3*
+  (alexandria:read-file-into-string "/home/imac/install/src/emacs-mirror/emacs-master/src/keymap.h"))
 (defparameter *acc* nil)
 (defun get-directives (&optional (text *file2*))
   (catch 'out
@@ -115,11 +117,31 @@ only works if path actually exists."
 	      (when (eql 0 place)
 		(throw 'out nil))
 	      (when directive
-		(per-iter directive)
+		(per-iter directive start place)
 		)
 	      (incf start place)))))
   (values))
-(defun per-iter (directive)
+(defun per-iter (directive start end)
   (terpri)
-  (princ directive)
+  (princ directive) (print (list start end))
   (push directive *acc*))
+
+(defparameter *path* "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h")
+(defun pathname-name-and-type (&optional (path *path*))
+  (let ((name (pathname-name path))
+	(type (pathname-type path)))
+    (if (or name type)
+	(concatenate 'string
+		     name
+		     (if type
+			 "."
+			 nil)
+		     type))))
+(defun get-directory (&optional (path *path*))
+  (make-pathname :directory (pathname-directory path)))
+(defun add-file-extension (extension &optional (path *path*))
+  (let ((dir (get-directory path))
+	(file (pathname-name-and-type path)))
+    (merge-pathnames
+     (concatenate 'string file extension)
+     dir)))
