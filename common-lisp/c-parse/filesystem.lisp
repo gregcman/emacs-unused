@@ -14,17 +14,11 @@ only works if path actually exists."
 
     ;;FIXME::hack?
     (let ((base-directory (pathname-directory base))
-	  (path-directory  (pathname-directory path)))
+	  (path-directory  (pathname-directory truename)))
       (make-pathname :directory
 		     (append base-directory (rest path-directory))
-		     :name (pathname-name path)
-		     :type (pathname-type path)))
-    #+nil
-    (concatenate
-     'string
-     base
-     (uiop:unix-namestring
-      truename))))
+		     :name (pathname-name truename)
+		     :type (pathname-type truename)))))
 
 (defun touch-cached-directories-and-files (path)
   (let ((reroot (re-root-real-path path)))
