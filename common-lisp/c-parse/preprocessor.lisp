@@ -35,11 +35,15 @@
 		    (car (last lines-acc)))
 	    acc))
     (nreverse acc)))
+(defun path-for-joined-lines (path)
+  (reroot path :prefix "_no_continued_lines__"))
+;;;;FIXME::put the file prefix/suffix code somewhere? 
 (defun join-lines (&optional (file *testpath*))
   (let* ((file-lines (uiop:read-file-lines file))
 	 (list (join-lines-list file-lines)))
-    (with-open-file (output (reroot file :prefix "_no_continued_lines__")
-			    :direction :output :if-exists :overwrite)
+    (with-open-file (output
+		     (path-for-joined-lines file)
+		     :direction :output :if-exists :overwrite :if-does-not-exist :create)
       (let ((len (list-length list))
 	    (count 0))
 	(dolist (line list)

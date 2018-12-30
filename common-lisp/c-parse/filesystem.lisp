@@ -21,13 +21,15 @@ only works if path actually exists."
 		     :type (pathname-type truename)))))
 
 (defun reroot (path &key (suffix "")
-		      (prefix ""))
+		      (prefix "")
+		      (create nil))
   (let ((reroot (re-root-real-path path)))
     (ensure-directories-exist reroot)
     ;;if its a file, touch it
     (let ((new (add-file-suffix suffix (add-file-prefix prefix reroot))))
-      (unless (uiop:directory-pathname-p new)
-	(touch-file new))
+      (when create
+	(unless (uiop:directory-pathname-p new)
+	  (touch-file new)))
       new)))
 
 (defparameter *touch-test-path* (merge-pathnames "touch.txt" *path*))
