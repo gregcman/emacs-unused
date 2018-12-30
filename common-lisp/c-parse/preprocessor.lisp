@@ -192,7 +192,8 @@
 	(list
 	 (path-for-original path)
 	 (path-for-joined-lines path)
-	 (path-for-cached-directive-intervals path))))
+	 (path-for-cached-directive-intervals path)
+	 (path-for-no-directives path))))
 
 (defun path-for-no-directives (path)
   (reroot path :prefix "_no_directives__"))
@@ -233,6 +234,8 @@
     (let ((text (alexandria:read-file-into-string joined-lines))
 	  (intervals (get-cached-directive-intervals path))
 	  (new-cache-path (path-for-no-directives path)))
+      (when *verbose*
+	(format *standard-output* "~%caching no-directives-file:~%for: ~a~%at: ~a" path new-cache-path))
       (with-open-file (output new-cache-path :direction :output :if-exists
 			      :overwrite :if-does-not-exist :create)
 	(let ((anti-intervals
