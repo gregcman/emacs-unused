@@ -144,6 +144,28 @@
 	   (write-char #\newline output))
 	 text)))))
 
+;;list of (start length) forms. start and length are integers
 (defun get-cached-directive-intervals (&optional (path *testpath*))
   (uiop:with-safe-io-syntax ()
     (uiop:read-file-forms (path-for-cached-directive-intervals path))))
+
+(defun read-n-characters (times &optional (stream *standard-input*))
+  (with-output-to-string (string-stream)
+    (loop :repeat times :do
+       (write-char (read-char stream)
+		   string-stream))))
+
+(defun read-character-section-from-file (start length &optional (path (path-for-joined-lines *testpath*)))
+  (with-open-file (stream path)
+    (unless
+	(file-position stream start)
+      (error "could not move the file position to ~a ~%for ~a" start path))
+    (read-n-characters length stream)))
+
+(defun test-cached-intervals (&optional (path *testpath*))
+  (let ((intervals
+	 (get-cached-directive-intervals path)))
+    (mapcar (lambda (interval)
+	      (destructuring-bind (start length) interval
+		(read-character-section-from-file start length path)))
+	    intervals)))
