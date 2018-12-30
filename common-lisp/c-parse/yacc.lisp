@@ -222,10 +222,16 @@ nil
       ;;don't 
       ;;,*yacc-start-symbol*
       ,(yacc-symbol "external_declaration")
+      ;;we don't parse the whole thing, we can't just parse the whoe translation_unit
+      ;;because of typedef declarations
       )
      (:terminals ,(getfnc '*yacc-token-symbols*))
      ,@(getfnc '*yacc-grammar-symbols*)))
-(defun parsefoobar (string &key (start 0) (end (length string)))
+(defun parse-external-declaration-unknown-length
+    (string &key (start 0) (end (length string)))
+  ;;cl-yacc will error if there are more tokens coming in after an external-declaration
+  ;;so we catch the error, inspect what it was looking at, that should be the end
+  ;;of the external-declaration
   (block out
     (tagbody try-again
        (handler-case
@@ -250,18 +256,21 @@ nil
 ;;;FIXME:: use incremental lengths, not absolute string positions
 (defun keep-parsing (string)
   (setf *typedef-env* nil)
-  (let ((start
-	 0
-	  )
+  (let ((start 0)
 	(end (length string)))
     (block exit
       (loop
-	 (multiple-value-bind (cst where) (parsefoobar string :start start :end end)
+	 (multiple-value-bind (cst where)
+	     (parse-external-declaration-unknown-length
+	      string :start start :end end)
 	   (when (and where (= where start)) ;;parsing failed
 	     (return-from exit))
 	   (push cst *parsed*)
+	   ;;test whether the external-declaration was a typedef
 	   (multiple-value-bind (value typedef-p) (cst-typedef-p cst)
+	     ;;if it is
 	     (when typedef-p
+	       ;;then add the new names to the environment
 	       (mapc
 		(lambda (x)
 		  (pushnew x *typedef-env* :test 'string=))
@@ -286,7 +295,8 @@ nil
   (mapcar 'cst-typedef *c-data-0*))
 
 (defun cst-typedef-p (&optional (CST (alexandria:random-elt *c-data-0*)))
-  "return a (values list-of-typedef'd-identifiers t) if its a typedef, (values nil nil) otherwise"
+  "return a (values list-of-typedef'd-identifiers t) if its a typedef, (values nil nil) otherwise
+depends on the CST being dumped in the form below, where node is (production-rule number &rest children)"
   (match CST
     ((list
       :EXTERNAL_DECLARATION
@@ -308,6 +318,7 @@ nil
 	:INIT_DECLARATOR_LIST _ names)
        (character-section (data ";"))
        ))
+     ;;each typedef can define many values. this finds them
      (values
       (mapcar 'character-section-data
 	      (find-$direct_declarator0$ names))
