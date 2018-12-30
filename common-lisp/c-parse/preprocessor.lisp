@@ -183,3 +183,10 @@
 	      (destructuring-bind (start length) interval
 		(read-character-section-from-file start length joined-lines)))
 	    intervals)))
+
+(defun delete-all-cache (&optional (path *testpath*))
+  (mapc 'uiop:delete-file-if-exists
+	(list
+	 (path-for-original path)
+	 (path-for-joined-lines path)
+	 (path-for-cached-directive-intervals path))))
