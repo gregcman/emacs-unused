@@ -102,11 +102,11 @@
 (defun yacc-symbol (x)
   (if x
       (let ((string (etypecase x
-		      (string (format nil "string%~a" x))
+		      (string (format nil "$~a" x))
 		      (character
 		       (pushnew x *yacc-terminal-chars*)
-		       (format nil "character%-~a" x))
-		      (symbol (format nil "symbol%~a" x)))))
+		       (format nil "C~a" x))
+		      (symbol (format nil "S~a" x)))))
 	(intern string *yacc-package*))
       x))
 
@@ -154,17 +154,23 @@ nil
 	       (declare (ignorable string-thing yacc-token-type ignorable))
 	       ;;(write-char (char-code-object yacc-token-type) stream)
 	       ;;(princ (stringy (car result)) stream)
-	       
+
 	       ;;to skip over whitespace
 	       (when (not yacc-token-type)
 		 (go try-again))
-	       (return-from out
-		 (values yacc-token-type
-			 (make-character-section
-			  :data (stringy string-thing)
-			  :start old-pos
-			  :end new-pos)
-			 )))))))))
+	       
+	       (let ((string (stringy string-thing)))
+		 (when (member string
+			       *typedef-env* :test 'string=)
+		   (setf yacc-token-type
+			 (load-time-value (yacc-symbol "TYPEDEF_NAME"))))
+		 (return-from out
+		   (values yacc-token-type
+			   (make-character-section
+			    :data string
+			    :start old-pos
+			    :end new-pos)
+			   ))))))))))
 (deflazy *yacc-start-symbol* (*yacc-start-string*)
   (yacc-symbol *yacc-start-string*))
 

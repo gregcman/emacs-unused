@@ -260,3 +260,23 @@
 		(loop :for i :from start :below (+ start len)
 		   :do (advance (aref text position))))))))
       new-cache-path)))
+
+(defun cache-those-lexed-tokens (&optional (path *testpath*))
+  (let ((no-directives-text (alexandria:read-file-into-string (path-for-no-directives path))))
+    (keep-lexing no-directives-text
+		 (lambda (token-type value)
+		   (let ((start (character-section-start value))
+			 (end (character-section-end value)))
+		     (let ((*package* *yacc-package*))
+		       (print (list start (- end start) token-type))))))))
+
+(defun keep-lexing (text &optional (fun (lambda (token-type value)
+					  (print (list token-type value)))))
+  (let ((lexer-fun (lex-for-cl-yacc text :end (length text)))
+	(alive-p t))
+    (while alive-p
+      (multiple-value-bind (token-type value) (funcall lexer-fun)
+	(cond ((null token-type)
+	       (setf alive-p nil))
+	      (t (funcall fun token-type value))))))
+  (values))
