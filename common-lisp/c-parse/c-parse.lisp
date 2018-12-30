@@ -203,7 +203,7 @@
   (apply 'nconc
 	 (mapcar 'get-c-files *include-directories*)))
 
-#+nil ;;non-parallel way
+;#+nil ;;non-parallel way
 (defun cached-emacs-c-files ()
   (mapcar 'ensure-cached-token-intervals
 	  (emacs-c-source)))
