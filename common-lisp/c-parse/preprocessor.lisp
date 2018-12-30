@@ -152,6 +152,8 @@
   (let ((joined-lines (ensure-cached-joined-lines path)))
     (let ((text (alexandria:read-file-into-string joined-lines))
 	  (cache-path (path-for-cached-directive-intervals path)))
+      (when *verbose*
+	(format t  "caching directive intervals:~%for ~a ~%at ~a~%" path cache-path))
       (with-open-file (output cache-path :direction :output :if-exists :supersede :if-does-not-exist :create)
 	(get-directives
 	 (lambda (directive start end)
@@ -206,7 +208,8 @@
 	 (path-for-original path)
 	 (path-for-joined-lines path)
 	 (path-for-cached-directive-intervals path)
-	 (path-for-no-directives path))))
+	 (path-for-no-directives path)
+	 (path-for-token-intervals path))))
 
 (defun path-for-no-directives (path)
   (reroot path :suffix "_no_directives__"))
