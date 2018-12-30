@@ -236,7 +236,10 @@ nil
      (:terminals ,(getfnc '*yacc-token-symbols*))
      ,@(getfnc '*yacc-grammar-symbols*)))
 (defun parse-external-declaration-unknown-length
-    (string &key (start 0) (end (length string)))
+    (lex-fun &key (start 0) (end most-positive-fixnum ;;FIXME::nonportable?
+				 ;;(length string)
+				 ))
+  ;;lexfun is a function that lexes from start to end
   ;;cl-yacc will error if there are more tokens coming in after an external-declaration
   ;;so we catch the error, inspect what it was looking at, that should be the end
   ;;of the external-declaration
@@ -247,7 +250,7 @@ nil
 	     (return-from out
 	       (if (= start end)
 		   (values nil end)
-		   (values (yacc:parse-with-lexer (lex-for-cl-yacc string :start start :end end) *c*)
+		   (values (yacc:parse-with-lexer (funcall lex-fun start end) *c*)
 			   end))))
 	 (yacc-parse-error (c)
 	   (when (eq nil (first (yacc-parse-error-expected-terminals c)))
@@ -262,29 +265,33 @@ nil
 (defparameter *parsed* nil)
 
 ;;;FIXME:: use incremental lengths, not absolute string positions
-(defun keep-parsing (string)
-  (setf *typedef-env* nil)
-  (let ((start 0)
-	(end (length string)))
-    (block exit
-      (loop
-	 (multiple-value-bind (cst where)
-	     (parse-external-declaration-unknown-length
-	      string :start start :end end)
-	   (when (and where (= where start)) ;;parsing failed
-	     (return-from exit))
-	   (push cst *parsed*)
-	   ;;test whether the external-declaration was a typedef
-	   (multiple-value-bind (value typedef-p) (cst-typedef-p cst)
-	     ;;if it is
-	     (when typedef-p
-	       ;;then add the new names to the environment
-	       (mapc
-		(lambda (x)
-		  (pushnew x *typedef-env* :test 'string=))
-		value)))
-	   (setf start
-		 where))))))
+(defun keep-parsing (&optional (path *testpath*))
+  (let ((string (alexandria:read-file-into-string (ensure-cached-no-directives path))))
+    (setf *typedef-env* nil)
+    (let ((start 0)
+	  (end (length string))
+	  (lex-fun (lambda (start end)
+		     (lex-for-cl-yacc string :start start :end end))))
+      (block exit
+	(loop
+	   (multiple-value-bind (cst where)
+	       (parse-external-declaration-unknown-length
+		lex-fun
+		:start start :end end)
+	     (when (and where (= where start)) ;;parsing failed
+	       (return-from exit))
+	     (push cst *parsed*)
+	     ;;test whether the external-declaration was a typedef
+	     (multiple-value-bind (value typedef-p) (cst-typedef-p cst)
+	       ;;if it is
+	       (when typedef-p
+		 ;;then add the new names to the environment
+		 (mapc
+		  (lambda (x)
+		    (pushnew x *typedef-env* :test 'string=))
+		  value)))
+	     (setf start
+		   where)))))))
 (defparameter *c-data*
   `("typedef struct tagNode
 {

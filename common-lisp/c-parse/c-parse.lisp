@@ -85,6 +85,7 @@
   (merge-pathnames path *emacs-src-root-path*))
 
 (defparameter *testpath*
+  #+nil
   (emacsify-path
    (merge-pathnames
     ;"lisp.h"
@@ -93,7 +94,7 @@
     "src/"))
   #+nil
   "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
-  #+nil
+  ;;#+nil
   "/home/imac/install/src/pycparser-master/examples/c_files/hash.c")
 
 ;;FIXME:: where to put test files?

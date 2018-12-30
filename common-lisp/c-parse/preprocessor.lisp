@@ -52,13 +52,17 @@
     (nreverse acc)))
 (defun path-for-joined-lines (path)
   (reroot path :prefix "_no_continued_lines__"))
-;;;;FIXME::put the file prefix/suffix code somewhere? 
-(defun cache-those-joined-lines (&optional (file *testpath*))
+(defun ensure-cached-original (&optional (file *testpath*))
   (let ((original-path (path-for-original file)))
     ;;FIXME::better way to ensure things? a pipeline?
     (unless (file-exists-p original-path)
       (setf original-path (cache-those-originals file)))
-    (let* ((file-lines (uiop:read-file-lines file))
+    original-path))
+;;;;FIXME::put the file prefix/suffix code somewhere? 
+(defun cache-those-joined-lines (&optional (file *testpath*))
+  (let ((original-path (ensure-cached-original file)))
+    ;;FIXME::better way to ensure things? a pipeline?
+    (let* ((file-lines (uiop:read-file-lines original-path))
 	   (list (join-lines-list file-lines))
 	   (path (path-for-joined-lines file)))
       (when *verbose*
@@ -133,13 +137,15 @@
 (defun file-exists-p (&optional (path *testpath*))
   (probe-file path))
 
-(defun cache-those-directives (&optional (path *testpath*))
-  ;;depends on the lines being joined
+;;;;FIXME::macro for caching?
+(defun ensure-cached-joined-lines (&optional (path *testpath*))
   (let ((joined-lines (path-for-joined-lines path)))
     (unless (file-exists-p joined-lines)
-      (setf joined-lines (cache-those-joined-lines path))
-      #+nil
-      (error "no connected lines file: ~a" joined-lines))
+      (setf joined-lines (cache-those-joined-lines path)))
+    joined-lines))
+(defun cache-those-directives (&optional (path *testpath*))
+  ;;depends on the lines being joined
+  (let ((joined-lines (ensure-cached-joined-lines)))
     (let ((text (alexandria:read-file-into-string joined-lines))
 	  (cache-path (path-for-cached-directive-intervals path)))
       (with-open-file (output cache-path :direction :output :if-exists :supersede :if-does-not-exist :create)
@@ -152,12 +158,15 @@
 	 text))
       cache-path)))
 
-;;list of (start length) forms. start and length are integers
-(defun get-cached-directive-intervals (&optional (path *testpath*))
+(defun ensure-cached-directive-intervals (&optional (path *testpath*))
   (let ((cache-path (path-for-cached-directive-intervals path)))
-    (unless (probe-file cache-path)
+    (unless (file-exists-p cache-path)
       (setf cache-path
 	    (cache-those-directives path)))
+    cache-path))
+;;list of (start length) forms. start and length are integers
+(defun get-cached-directive-intervals (&optional (path *testpath*))
+  (let ((cache-path (ensure-cached-directive-intervals path)))
     (uiop:with-safe-io-syntax ()
       (uiop:read-file-forms cache-path))))
 
@@ -226,11 +235,7 @@
 
 (defun cache-those-no-directives (&optional (path *testpath*))
   ;;depends on the lines being joined
-  (let ((joined-lines (path-for-joined-lines path)))
-    (unless (file-exists-p joined-lines)
-      (setf joined-lines (cache-those-joined-lines path))
-      #+nil
-      (error "no connected lines file: ~a" joined-lines))
+  (let ((joined-lines (ensure-cached-joined-lines path)))
     (let ((text (alexandria:read-file-into-string joined-lines))
 	  (intervals (get-cached-directive-intervals path))
 	  (new-cache-path (path-for-no-directives path)))
@@ -261,14 +266,15 @@
 		   :do (advance (aref text position))))))))
       new-cache-path)))
 
+(defun ensure-cached-no-directives (&optional (path *testpath*))
+  (let ((path-for-no-directives (path-for-no-directives path)))
+    (unless (file-exists-p path-for-no-directives)
+      (setf path-for-no-directives (cache-those-no-directives path)))
+    path-for-no-directives))
 (defun path-for-token-intervals (path)
   (reroot path :prefix "_token_intervals__"))
 (defun cache-those-lexed-tokens (&optional (path *testpath*))
-  (let ((path-for-no-directives (path-for-no-directives path)))
-    (unless (file-exists-p path-for-no-directives)
-      (setf path-for-no-directives (cache-those-no-directives path))
-      #+nil
-      (error "no connected lines file: ~a" joined-lines))
+  (let ((path-for-no-directives (ensure-cached-no-directives path)))
     (let ((no-directives-text (alexandria:read-file-into-string path-for-no-directives))
 	  (new-cache-path (path-for-token-intervals path)))
       (with-open-file (output new-cache-path :direction :output :if-exists
@@ -282,7 +288,8 @@
 				  :stream output
 				  :readably t
 				  :case :downcase)
-			   (write-char #\Newline output)))))))))
+			   (write-char #\Newline output))))))
+      (return-from cache-those-lexed-tokens new-cache-path))))
 
 (defun keep-lexing (text &optional (fun (lambda (token-type value)
 					  (print (list token-type value)))))
@@ -294,3 +301,12 @@
 	       (setf alive-p nil))
 	      (t (funcall fun token-type value))))))
   (values))
+(defun ensure-cached-token-intervals (&optional (path *testpath*))
+  (let ((path-for-token-intervals (path-for-token-intervals path)))
+    (unless (file-exists-p path-for-token-intervals)
+      (setf path-for-token-intervals (cache-those-lexed-tokens path)))
+    path-for-token-intervals))
+(defun get-cached-token-intervals (&optional (path *testpath*))
+  (let ((path-for-token-intervals (ensure-cached-token-intervals path)))
+    (uiop:with-safe-io-syntax (:package *yacc-package*)
+      (uiop:read-file-forms path-for-token-intervals))))
