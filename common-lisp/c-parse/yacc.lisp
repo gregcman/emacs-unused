@@ -344,6 +344,7 @@ nil
        (dolist (item items)
 	 (dump-cst item newdepth))))))
 
+;;;;FIXME::where to put this?
 (defun start-up ()
   (eval-lexer)
   (eval (gen-parser-code))
