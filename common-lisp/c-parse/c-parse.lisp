@@ -101,3 +101,25 @@
 (defparameter *text-test-file*
   (alexandria:read-file-into-string
    *testpath*))
+
+(defmacro while (condition &body body)
+  `(do () ((not,condition))
+     ,@body))
+
+(defun symbol= (sym1 sym2)
+  (eq sym1 sym2))
+
+(defgeneric equalp? (a b))
+(defmethod equalp? ((a number) (b number))
+  (= a b))
+(defmethod equalp? ((a cons) (b cons))
+  (and (equalp? (car a) (car b))
+       (equalp? (cdr a) (cdr b))))
+(defmethod equalp? ((a t) (b t))
+  nil)
+(defmethod equalp? ((a character) (b character))
+  (char= a b))
+(defmethod equalp? ((a string) (b string))
+  (string= a b))
+(defmethod equalp? ((a symbol) (b symbol))
+  (symbol= a b))

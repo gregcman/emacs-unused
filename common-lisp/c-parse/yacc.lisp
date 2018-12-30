@@ -124,6 +124,10 @@
 	      (character-section-start object)
 	      (character-section-end object)))
     (set-pprint-dispatch 'character-section 'print-character-section)))
+(defmethod equalp? ((a character-section) (b character-section))
+  (and (equalp? (character-section-data a) (character-section-data b))
+       (equalp? (character-section-start a) (character-section-start b))
+       (equalp? (character-section-end a) (character-section-end b))))
 #+nil
 "A  parser  consumes  the  output  of  a  lexer,  that  produces  a  stream  of  terminals.   CL-Yacc
 expects the lexer to be a function of no arguments (a
@@ -133,6 +137,17 @@ terminal symbol, and the value of the symbol, which will be passed to the action
 a production.  At the end of the input, the lexer should return
 nil
 ."
+(defun correct-token-if-identifier (token-type string-thing)
+  (let ((string (stringy string-thing)))
+    (values 
+     (if (and
+	  ;;was marked as an IDENTIFIER
+	  (symbol= token-type (load-time-value (yacc-symbol "IDENTIFIER")))
+	  ;;and was found to be a typedef
+	  (member string *typedef-env* :test 'string=))
+	 (load-time-value (yacc-symbol "TYPEDEF_NAME"))
+	 token-type)
+     string)))
 (defun lex-for-cl-yacc (string &key (start 0) (end nil))
   ;;cl-yacc accepts a function that returns two values. the token type and the value
   ;;when there are no more tokens, it should return (values nil nil) [?FIXME::document?]
@@ -159,13 +174,10 @@ nil
 	       (when (not yacc-token-type)
 		 (go try-again))
 	       
-	       (let ((string (stringy string-thing)))
-		 (when (member string
-			       *typedef-env* :test 'string=)
-		   (setf yacc-token-type
-			 (load-time-value (yacc-symbol "TYPEDEF_NAME"))))
+	       (multiple-value-bind (token string)
+		   (correct-token-if-identifier yacc-token-type string-thing)
 		 (return-from out
-		   (values yacc-token-type
+		   (values token
 			   (make-character-section
 			    :data string
 			    :start old-pos
@@ -271,6 +283,8 @@ nil
     (let ((start 0)
 	  (end (length string))
 	  (lex-fun (lambda (start end)
+		     (lex-for-cl-yacc-cached :path path :string string :start start :end end)
+		     #+nil
 		     (lex-for-cl-yacc string :start start :end end))))
       (block exit
 	(loop

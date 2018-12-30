@@ -224,9 +224,6 @@
       (foo start end))
     (nreverse acc)))
 
-(defmacro while (condition &body body)
-  `(do () ((not,condition))
-     ,@body))
 ;;because sometimes we work with bork strings and files
 (defun thing-length (thing)
   (typecase thing
@@ -310,3 +307,39 @@
   (let ((path-for-token-intervals (ensure-cached-token-intervals path)))
     (uiop:with-safe-io-syntax (:package *yacc-package*)
       (uiop:read-file-forms path-for-token-intervals))))
+
+(defun lex-for-cl-yacc-cached (&key
+				 (path *testpath*)
+				 (string (alexandria:read-file-into-string
+					  (ensure-cached-no-directives
+					   path)))
+				 (start 0)
+				 (end most-positive-fixnum);;FIXME::real end designator
+				 )
+  (ensure-cached-token-intervals path)
+  (let* ((data (get-cached-token-intervals path))
+	 (iter
+	   (find-just-before->= start data :key 'car)))
+    (lambda ()
+      (if iter
+	  (let ((spec (pop iter)))
+	    (destructuring-bind (start length token) spec
+	      (let ((this-token-end (+ start length)))
+		(if (> this-token-end end)
+		    (values nil nil)
+		    (let ((str (subseq string start this-token-end)))
+		      (multiple-value-bind (token string) (correct-token-if-identifier token str)
+			(values token
+				(make-character-section
+				 :start start
+				 :end this-token-end
+				 :data string
+				 ))))))))
+	  (values nil nil)))))
+
+(defun find-just-before->= (item list &rest rest &key &allow-other-keys)
+  (let ((position (apply 'position-if
+			 (lambda (x)
+			   (>= x item))
+			 list rest)))
+    (nthcdr position list)))
