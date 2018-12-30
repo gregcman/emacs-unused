@@ -74,6 +74,7 @@
 	    character)
 	nil)))
 ;;FIXME:: non-consing esrap-liquid?
+;;FIXME:: where to put test files?
 (defparameter *file2*
   (alexandria:read-file-into-string "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h"))
 (defparameter *file3*

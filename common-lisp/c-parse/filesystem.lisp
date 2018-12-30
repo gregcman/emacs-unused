@@ -20,15 +20,15 @@ only works if path actually exists."
 		     :name (pathname-name truename)
 		     :type (pathname-type truename)))))
 
-(defun touch-cached-directories-and-files (path)
+(defun reroot (path &key (suffix "")
+		      (prefix ""))
   (let ((reroot (re-root-real-path path)))
     (ensure-directories-exist reroot)
     ;;if its a file, touch it
-    (unless (uiop:directory-pathname-p reroot)
-      (touch-file reroot))
-    reroot))
-(defun reroot (path)
-  (touch-cached-directories-and-files path))
+    (let ((new (add-file-suffix suffix (add-file-prefix prefix reroot))))
+      (unless (uiop:directory-pathname-p new)
+	(touch-file new))
+      new)))
 
 (defun touch-file (&optional (path "/home/imac/install/src/touch.txt"))
   (with-open-file (stream path :if-does-not-exist :create)))
@@ -57,10 +57,10 @@ only works if path actually exists."
 ;;(ADD-FILE-SUFFIX "~") lisp.h -> ~lisp.h
 (defun add-file-suffix (suffix &optional (path *testpath*))
   (add-file-extension (lambda (x)
-			(concatenate-string suffix x))
+			(concatenate-string x suffix))
 		      path))
 ;;(ADD-FILE-SUFFIX ".directive") lisp.h -> lisp.h.directive
 (defun add-file-prefix (prefix &optional (path *testpath*))
   (add-file-extension (lambda (x)
-			(concatenate-string x prefix))
+			(concatenate-string prefix x))
 		      path))
