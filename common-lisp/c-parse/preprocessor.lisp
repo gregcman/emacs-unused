@@ -241,21 +241,22 @@
 	(let ((anti-intervals
 	       (get-anti-intervals intervals
 				   (thing-length text)))
-	      (position 0)
-	      (spacecount 0))
+	      (position 0))
 	  (flet ((advance (&optional char)
 		   (if char
 		       (write-char char output)
 		       (let ((oldchar (aref text position)))
-			 (if (char= #\Newline oldchar)
-			     (write-char #\Newline output)
-			     (write-char #\Space output))))
+			 (cond ((char= #\Newline oldchar)
+				(write-char #\Newline output))
+			       ((char= #\Tab oldchar)
+				(write-char #\Tab output))
+			       (t
+				(write-char #\Space output)))))
 		   (incf position)))
 	    (dolist (spec anti-intervals)
 	      (destructuring-bind (start len) spec
-		(setf spacecount 0)
 		(while (not (= start position))
 		  (advance))
 		(loop :for i :from start :below (+ start len)
-		   :do (advance (aref text i))))))))
+		   :do (advance (aref text position))))))))
       new-cache-path)))
