@@ -38,7 +38,8 @@
 (defun join-lines (file)
   (let* ((file-lines (uiop:read-file-lines file))
 	 (list (join-lines-list file-lines)))
-    (with-open-file (output (reroot file) :direction :output :if-exists :overwrite)
+    (with-open-file (output (reroot file :prefix "_no_continued_lines__")
+			    :direction :output :if-exists :overwrite)
       (let ((len (list-length list))
 	    (count 0))
 	(dolist (line list)
@@ -74,13 +75,8 @@
 	    character)
 	nil)))
 ;;FIXME:: non-consing esrap-liquid?
-;;FIXME:: where to put test files?
-(defparameter *file2*
-  (alexandria:read-file-into-string "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h"))
-(defparameter *file3*
-  (alexandria:read-file-into-string "/home/imac/install/src/emacs-mirror/emacs-master/src/keymap.h"))
 (defparameter *acc* nil)
-(defun get-directives (&optional (text *file2*))
+(defun get-directives (&optional (text *text-test-file*))
   (catch 'out
     (let ((start 0))
       (loop (multiple-value-bind (directive place)

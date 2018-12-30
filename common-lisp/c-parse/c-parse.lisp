@@ -78,3 +78,20 @@
     (v lex-comment-end-token))
    nil
   )
+(defparameter *emacs-src-root-path* "/home/imac/install/src/emacs-mirror/emacs-master/")
+(defun emacsify-path (&optional (path "src/lisp.h"))
+  (merge-pathnames path *emacs-src-root-path*))
+
+(defparameter *testpath*
+  (emacsify-path "src/lisp.h")
+  #+nil
+  "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
+  #+nil
+  "/home/imac/install/src/pycparser-master/examples/c_files/hash.c")
+
+;;FIXME:: where to put test files?
+(defparameter *text-test-file*
+  (alexandria:read-file-into-string
+   (emacsify-path "src/lisp.h")
+   #+nil
+   (emacsify-path "src/keymap.h")))

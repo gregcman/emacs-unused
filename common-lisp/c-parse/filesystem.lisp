@@ -30,12 +30,12 @@ only works if path actually exists."
 	(touch-file new))
       new)))
 
-(defun touch-file (&optional (path "/home/imac/install/src/touch.txt"))
+(defparameter *touch-test-path* (merge-pathnames "touch.txt" *path*))
+(defun touch-file (&optional (path *touch-test-path*))
   (with-open-file (stream path :if-does-not-exist :create)))
 
 ;;be able to make a derived filename
-(defparameter *testpath* "/home/imac/install/src/emacs-mirror/emacs-master/src/lisp.h")
-(defun pathname-name-and-type (&optional (path *testpath*))
+(defun pathname-name-and-type (&optional (path *touch-test-path*))
   (let ((name (pathname-name path))
 	(type (pathname-type path)))
     (if (or name type)

@@ -104,11 +104,6 @@
   (with-output-to-string (stream)
     (lex string stream)))
 
-(defparameter *file1* (alexandria:read-file-into-string
-		       #+nl
-		       "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
-		       "/home/imac/install/src/pycparser-master/examples/c_files/hash.c"))
-
 ;;FIXME:: hack -> using unicode characters to represent tokens, thus simplifyng tokens
 #+nil
 (progn
