@@ -13,7 +13,7 @@
 	       #:fiveam
 	       #:deflazy
 	       #:osicat ;;for seeing size of files
-	       #:lparallel ;;for using multiple cores to lex
+	       ;;#:lparallel ;;for using multiple cores to lex
 	       )
   :serial t
   :components 

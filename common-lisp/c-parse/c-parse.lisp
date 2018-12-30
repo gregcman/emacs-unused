@@ -208,8 +208,9 @@
   (mapcar 'ensure-cached-token-intervals
 	  (emacs-c-source)))
 ;;FIXME:: lazy load lparallel kernel with deflazy?
+#+nil
 (setf lparallel:*kernel* (lparallel:make-kernel 4))
-
+#+nil
 (defun submit-emacs-jobs ()
   (lparallel:pmapc 'ensure-cached-token-intervals
 		   (emacs-c-source)))
