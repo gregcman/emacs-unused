@@ -278,7 +278,10 @@
 		       (let ((start (character-section-start value))
 			     (end (character-section-end value)))
 			 (let ((*package* *yacc-package*))
-			   (princ (list start (- end start) token-type) output)
+			   (write (list start (- end start) token-type)
+				  :stream output
+				  :readably t
+				  :case :downcase)
 			   (write-char #\Newline output)))))))))
 
 (defun keep-lexing (text &optional (fun (lambda (token-type value)
