@@ -37,6 +37,7 @@ only works if path actually exists."
   (with-open-file (stream path :if-does-not-exist :create)))
 
 ;;be able to make a derived filename
+#+nil
 (defun pathname-name-and-type (&optional (path *touch-test-path*))
   (let ((name (pathname-name path))
 	(type (pathname-type path)))
@@ -53,7 +54,9 @@ only works if path actually exists."
   (let ((dir (get-directory path))
 	(file (pathname-name-and-type path)))
     (merge-pathnames
-     (concatenate-string (funcall extension-fun file))
+     (make-pathname :name
+		    (funcall extension-fun (pathname-name file))
+		    :type (pathname-type file))
      dir)))
 
 ;;(ADD-FILE-SUFFIX "~") lisp.h -> ~lisp.h
