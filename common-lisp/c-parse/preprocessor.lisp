@@ -35,7 +35,7 @@
 		    (car (last lines-acc)))
 	    acc))
     (nreverse acc)))
-(defun join-lines (file)
+(defun join-lines (&optional (file *testpath*))
   (let* ((file-lines (uiop:read-file-lines file))
 	 (list (join-lines-list file-lines)))
     (with-open-file (output (reroot file :prefix "_no_continued_lines__")
