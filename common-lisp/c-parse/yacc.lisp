@@ -134,6 +134,8 @@ a production.  At the end of the input, the lexer should return
 nil
 ."
 (defun lex-for-cl-yacc (string &key (start 0) (end nil))
+  ;;cl-yacc accepts a function that returns two values. the token type and the value
+  ;;when there are no more tokens, it should return (values nil nil) [?FIXME::document?]
   (lambda ()
     (block out
       (tagbody try-again
@@ -142,8 +144,11 @@ nil
 	   (let ((old-pos start)
 		 (new-pos (+ start len)))
 	     (setf start new-pos)
-	     (when (or (and end (> new-pos end))
-		       (zerop len))
+	     (when (or
+		    ;;went too far, farther than end
+		    (and end (> new-pos end))
+		    ;;failed to lex. length 0 means no solution for lexing was found
+		    (zerop len))
 	       (return-from out (values nil nil)))
 	     (destructuring-bind (string-thing ignorable yacc-token-type) result
 	       (declare (ignorable string-thing yacc-token-type ignorable))
@@ -159,10 +164,7 @@ nil
 			  :data (stringy string-thing)
 			  :start old-pos
 			  :end new-pos)
-			 ))
-	       
-	       ))
-	   )))))
+			 )))))))))
 (deflazy *yacc-start-symbol* (*yacc-start-string*)
   (yacc-symbol *yacc-start-string*))
 
