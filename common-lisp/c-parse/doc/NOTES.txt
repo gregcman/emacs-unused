@@ -321,3 +321,4 @@ and emacs/src/
 detect whether files have changed?
 created/creating a build system?
 ;;optimization: prefix tree for the shadowroot hash
+;;debugging information:: print out percentage of completion for caching things. takes a long ass time
