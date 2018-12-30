@@ -241,12 +241,19 @@
 	(let ((anti-intervals
 	       (get-anti-intervals intervals
 				   (thing-length text)))
-	      (position 0))
-	  (flet ((advance (&optional (char #\Space))
-		   (incf position)
-		   (write-char char output)))
+	      (position 0)
+	      (spacecount 0))
+	  (flet ((advance (&optional char)
+		   (if char
+		       (write-char char output)
+		       (let ((oldchar (aref text position)))
+			 (if (char= #\Newline oldchar)
+			     (write-char #\Newline output)
+			     (write-char #\Space output))))
+		   (incf position)))
 	    (dolist (spec anti-intervals)
 	      (destructuring-bind (start len) spec
+		(setf spacecount 0)
 		(while (not (= start position))
 		  (advance))
 		(loop :for i :from start :below (+ start len)
