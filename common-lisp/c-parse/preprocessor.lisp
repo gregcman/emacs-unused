@@ -1,8 +1,12 @@
 (in-package :c-parse)
 
 ;;be loud when doing things
-(defparameter *verbose* t)
+(defparameter *verbose* 2)
+;;different verbosity levels?
 
+(defun verbose-enough (n)
+  (and (numberp *verbose*)
+       (> *verbose* n)))
 (defun path-for-original (path)
   (reroot path :suffix "_original__"))
 
@@ -65,7 +69,7 @@
     (let* ((file-lines (uiop:read-file-lines original-path))
 	   (list (join-lines-list file-lines))
 	   (path (path-for-joined-lines file)))
-      (when *verbose*
+      (when (verbose-enough 5)
 	(format t "caching joined lines:~%for ~a ~%at ~a~%" file path))
       (with-open-file (output
 		       path
@@ -122,7 +126,7 @@
 	      (when (eql 0 length)
 		(throw 'out nil))
 	      (when directive
-		(print (list directive length))
+		;;(print (list directive length))
 		(funcall fun directive start length))
 	      (incf start length)))))
   (values))
@@ -151,7 +155,7 @@
       (with-open-file (output cache-path :direction :output :if-exists :supersede :if-does-not-exist :create)
 	(get-directives
 	 (lambda (directive start end)
-	   (when *verbose*
+	   (when (verbose-enough 4)
 	     (format *standard-output* "~%caching: start: ~a end: ~a ~% ~a" start end directive))
 	   (princ (list start end) output)
 	   (write-char #\newline output))

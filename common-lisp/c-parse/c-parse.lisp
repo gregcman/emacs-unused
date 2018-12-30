@@ -156,11 +156,14 @@
     (return-from get-c-files (nreverse acc))))
 
 (defun total-emacs-c-bytes (&optional (path *emacs-src-root-path*))
+  (total-file-bytes (get-c-files path)))
+
+(defun total-file-bytes (files-list)
   (reduce '+
 	  (mapcar (lambda (path)
 		    (osicat-posix:stat-size
 		     (osicat-posix:stat path)))
-		  (get-c-files path))))
+		  files-list)))
 
 (defun find-just-before (item list fun &rest rest &key &allow-other-keys)
   (let ((position (apply 'position-if
@@ -195,3 +198,11 @@
   (destructuring-bind (num name) (get-bytesize (total-emacs-c-bytes path))
     (format t "~%~a ~a~%" num name))
   (values))
+
+(defun emacs-c-source ()
+  (apply 'nconc
+	 (mapcar 'get-c-files *include-directories*)))
+
+(defun cached-emacs-c-files ()
+  (mapcar 'ensure-cached-token-intervals
+	  (emacs-c-source)))

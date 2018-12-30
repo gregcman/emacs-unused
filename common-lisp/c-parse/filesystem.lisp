@@ -51,12 +51,11 @@ only works if path actually exists."
 (defun get-directory (&optional (path *testpath*))
   (make-pathname :directory (pathname-directory path)))
 (defun add-file-extension (extension-fun &optional (path *testpath*))
-  (let ((dir (get-directory path))
-	(file (pathname-name-and-type path)))
+  (let ((dir (get-directory path)))
     (merge-pathnames
      (make-pathname :name
-		    (funcall extension-fun (pathname-name file))
-		    :type (pathname-type file))
+		    (funcall extension-fun (pathname-name path))
+		    :type (pathname-type path))
      dir)))
 
 ;;(ADD-FILE-SUFFIX "~") lisp.h -> ~lisp.h
