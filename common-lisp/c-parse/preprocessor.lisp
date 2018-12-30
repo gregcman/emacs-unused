@@ -90,17 +90,24 @@
 (define-c-parse-rule directive ()
   (progn-v (times white-char-no-newline)
 	   #\#
-	   (stringy (times (progn (! #\Newline)
-				  (v character))))))
+	   (prog1 (stringy (times (progn (! #\Newline)
+					 (||
+					  ;;one line whitespace
+					  (progn (v whitespace-no-newline)
+						 #\Space)
+					  (progn (v lex-yacc-multiline-comment)
+						 #\Space)
+					  ;;just eat all the characters
+					  (v character)))))
+	     (? #\Newline))))
 
 (define-c-parse-rule thing ()
   (|| directive
-      (progn
-	(|| whitespace-no-newline
-	    lex-yacc-multiline-comment
-	    //comment
-	    character)
-	nil)))
+      (progn (|| whitespace-no-newline
+		 lex-yacc-multiline-comment
+		 //comment
+		 character)
+	     nil)))
 ;;FIXME:: non-consing esrap-liquid?
 (defparameter *acc* nil)
 (defun get-directives (&optional (fun 'per-iter) (text *text-test-file*))
@@ -142,12 +149,17 @@
 	     (format *standard-output* "~%caching: start: ~a end: ~a ~% ~a" start end directive))
 	   (princ (list start end) output)
 	   (write-char #\newline output))
-	 text)))))
+	 text))
+      cache-path)))
 
 ;;list of (start length) forms. start and length are integers
 (defun get-cached-directive-intervals (&optional (path *testpath*))
-  (uiop:with-safe-io-syntax ()
-    (uiop:read-file-forms (path-for-cached-directive-intervals path))))
+  (let ((cache-path (path-for-cached-directive-intervals path)))
+    (unless (probe-file cache-path)
+      (setf cache-path
+	    (cache-those-directives path)))
+    (uiop:with-safe-io-syntax ()
+      (uiop:read-file-forms cache-path))))
 
 (defun read-n-characters (times &optional (stream *standard-input*))
   (with-output-to-string (string-stream)
@@ -164,8 +176,10 @@
 
 (defun test-cached-intervals (&optional (path *testpath*))
   (let ((intervals
-	 (get-cached-directive-intervals path)))
+	 (get-cached-directive-intervals path))
+	;;;need to keep track of which file were reading from
+	(joined-lines (path-for-joined-lines path)))
     (mapcar (lambda (interval)
 	      (destructuring-bind (start length) interval
-		(read-character-section-from-file start length path)))
+		(read-character-section-from-file start length joined-lines)))
 	    intervals)))
