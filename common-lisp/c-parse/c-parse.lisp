@@ -85,7 +85,12 @@
   (merge-pathnames path *emacs-src-root-path*))
 
 (defparameter *testpath*
-  (emacsify-path "src/lisp.h")
+  (emacsify-path
+   (merge-pathnames
+    ;"lisp.h"
+    "syntax.h"
+    ;"keymap.h"
+    "src/"))
   #+nil
   "/home/imac/install/src/pycparser-master/examples/c_files/funky.c"
   #+nil
@@ -94,6 +99,4 @@
 ;;FIXME:: where to put test files?
 (defparameter *text-test-file*
   (alexandria:read-file-into-string
-   (emacsify-path "src/lisp.h")
-   #+nil
-   (emacsify-path "src/keymap.h")))
+   *testpath*))

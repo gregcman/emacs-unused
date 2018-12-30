@@ -313,3 +313,7 @@ if it still parsers/runs its good? passing emacs tests?
 use tests thoroughly? documentation?
 
 lex headers correctly?
+
+walk the entire emacs directory for header and c files?
+emacs/lib/
+and emacs/src/
