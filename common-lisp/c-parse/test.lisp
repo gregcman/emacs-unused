@@ -135,3 +135,10 @@
 (defun ascii-increment (char)
   (let ((code (char-code char)))
     (code-char (+ 32 (mod (+ 1 (- code 32)) 95)))))
+
+#+nil
+(get-directives 'per-iter
+		(alexandria:read-file-into-string
+		 (ensure-cached-no-directives
+		  "/home/imac/install/src/emacs-mirror/emacs-master/src/xdisp.c")
+		 ))

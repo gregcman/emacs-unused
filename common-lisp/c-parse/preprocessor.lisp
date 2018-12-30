@@ -4,7 +4,7 @@
 (defparameter *verbose* t)
 
 (defun path-for-original (path)
-  (reroot path :prefix "_original__"))
+  (reroot path :suffix "_original__"))
 
 (defun cache-those-originals (path)
   "save a copy of a file in the shadowroot, returning the path to the shadowroot file"
@@ -51,7 +51,7 @@
 	    acc))
     (nreverse acc)))
 (defun path-for-joined-lines (path)
-  (reroot path :prefix "_no_continued_lines__"))
+  (reroot path :suffix "_no_continued_lines__"))
 (defun ensure-cached-original (&optional (file *testpath*))
   (let ((original-path (path-for-original file)))
     ;;FIXME::better way to ensure things? a pipeline?
@@ -117,14 +117,14 @@
 (defun get-directives (&optional (fun 'per-iter) (text *text-test-file*))
   (catch 'out
     (let ((start 0))
-      (loop (multiple-value-bind (directive place)
+      (loop (multiple-value-bind (directive length)
 		(parse-with-garbage 'thing text :start start)
-	      (when (eql 0 place)
+	      (when (eql 0 length)
 		(throw 'out nil))
 	      (when directive
-		(funcall fun directive start place)
-		)
-	      (incf start place)))))
+		(print (list directive length))
+		(funcall fun directive start length))
+	      (incf start length)))))
   (values))
 (defun per-iter (directive start end)
   (terpri)
@@ -132,7 +132,7 @@
   (push directive *acc*))
 
 (defun path-for-cached-directive-intervals (path)
-  (reroot path :prefix "_directive_interval__"))
+  (reroot path :suffix "_directive_interval__"))
 
 (defun file-exists-p (&optional (path *testpath*))
   (probe-file path))
@@ -145,7 +145,7 @@
     joined-lines))
 (defun cache-those-directives (&optional (path *testpath*))
   ;;depends on the lines being joined
-  (let ((joined-lines (ensure-cached-joined-lines)))
+  (let ((joined-lines (ensure-cached-joined-lines path)))
     (let ((text (alexandria:read-file-into-string joined-lines))
 	  (cache-path (path-for-cached-directive-intervals path)))
       (with-open-file (output cache-path :direction :output :if-exists :supersede :if-does-not-exist :create)
@@ -205,7 +205,7 @@
 	 (path-for-no-directives path))))
 
 (defun path-for-no-directives (path)
-  (reroot path :prefix "_no_directives__"))
+  (reroot path :suffix "_no_directives__"))
 
 (defun get-anti-intervals (intervals end)
   ;;intervals are (start length)
@@ -269,7 +269,7 @@
       (setf path-for-no-directives (cache-those-no-directives path)))
     path-for-no-directives))
 (defun path-for-token-intervals (path)
-  (reroot path :prefix "_token_intervals__"))
+  (reroot path :suffix "_token_intervals__"))
 (defun cache-those-lexed-tokens (&optional (path *testpath*))
   (let ((path-for-no-directives (ensure-cached-no-directives path)))
     (let ((no-directives-text (alexandria:read-file-into-string path-for-no-directives))
