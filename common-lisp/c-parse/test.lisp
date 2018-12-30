@@ -128,3 +128,10 @@
 	   #\(
 	   character
 	   #\)))
+
+;;32 -> 126 inclusive
+;;0 -> 126 - 32 = 94
+;;0 -> 94 inclusive = mod 95
+(defun ascii-increment (char)
+  (let ((code (char-code char)))
+    (code-char (+ 32 (mod (+ 1 (- code 32)) 95)))))
