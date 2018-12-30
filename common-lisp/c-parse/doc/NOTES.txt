@@ -346,3 +346,5 @@ roughly 5x disk space for lisp.h
 
 xdisp is around 10 times largest = 100 minutes ~ two hours to parse xdisp.c
 ;;but hey, it's much better than manually doing it
+;;symbols vs functions for funcall . fast funcall?
+

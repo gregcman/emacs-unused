@@ -11,7 +11,9 @@
 	       #:uncommon-lisp
 	       #:trivia
 	       #:fiveam
-	       #:deflazy)
+	       #:deflazy
+	       #:osicat ;;for seeing size of files
+	       )
   :serial t
   :components 
   ((:file "package")

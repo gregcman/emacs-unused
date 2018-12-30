@@ -319,7 +319,7 @@
   (ensure-cached-token-intervals path)
   (let* ((data (get-cached-token-intervals path))
 	 (iter
-	   (find-just-before->= start data :key 'car)))
+	   (find-just-before start data '>= :key 'car)))
     (lambda ()
       (if iter
 	  (let ((spec (pop iter)))
@@ -336,10 +336,3 @@
 				 :data string
 				 ))))))))
 	  (values nil nil)))))
-
-(defun find-just-before->= (item list &rest rest &key &allow-other-keys)
-  (let ((position (apply 'position-if
-			 (lambda (x)
-			   (>= x item))
-			 list rest)))
-    (nthcdr position list)))
