@@ -77,7 +77,9 @@
 	  )
     (v lex-comment-end-token))
    nil
-  )
+   )
+
+;;;;for default testing purposes
 (defparameter *emacs-src-root-path* "/home/imac/install/src/emacs-mirror/emacs-master/")
 (defun emacsify-path (&optional (path "src/lisp.h"))
   (merge-pathnames path *emacs-src-root-path*))
