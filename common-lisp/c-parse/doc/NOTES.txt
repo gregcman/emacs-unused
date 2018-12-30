@@ -317,3 +317,7 @@ lex headers correctly?
 walk the entire emacs directory for header and c files?
 emacs/lib/
 and emacs/src/
+
+detect whether files have changed?
+created/creating a build system?
+;;optimization: prefix tree for the shadowroot hash

@@ -174,6 +174,8 @@
       (error "could not move the file position to ~a ~%for ~a" start path))
     (read-n-characters length stream)))
 
+;;for checking whether the intervals are legit. should start with whitespace, then
+;;# pound, then can span multiple lines with multi-line comments, then terminate in newline
 (defun test-cached-intervals (&optional (path *testpath*))
   (let ((intervals
 	 (get-cached-directive-intervals path))
@@ -184,9 +186,66 @@
 		(read-character-section-from-file start length joined-lines)))
 	    intervals)))
 
+;;add more functions to delete and recreate as necessary
 (defun delete-all-cache (&optional (path *testpath*))
   (mapc 'uiop:delete-file-if-exists
 	(list
 	 (path-for-original path)
 	 (path-for-joined-lines path)
 	 (path-for-cached-directive-intervals path))))
+
+(defun path-for-no-directives (path)
+  (reroot path :prefix "_no_directives__"))
+
+(defun get-anti-intervals (intervals end)
+  ;;intervals are (start length)
+  ;;return a list of (start length) pairs to iterate over
+  ;; (do-anti-intervals '((0 1) (2 3)) 10) 0 | 2 3 4-> ((1 1) (5 5)) 1 | 5 6 7 8 9
+  (let ((start 0)
+	(acc nil))
+    (flet ((foo (start interval)
+	     (let ((length (- interval start)))
+	       (unless (= 0 length) ;;throw away empty intervals
+		 (push (list start length) acc)))))
+      (dolist (interval intervals)
+	(destructuring-bind (interval-start length) interval
+	  (foo start interval-start)
+	  (setf start (+ interval-start length))))
+      (foo start end))
+    (nreverse acc)))
+
+(defmacro while (condition &body body)
+  `(do () ((not,condition))
+     ,@body))
+;;because sometimes we work with bork strings and files
+(defun thing-length (thing)
+  (typecase thing
+    (stream (file-length thing))
+    (otherwise (length thing))))
+
+(defun cache-those-no-directives (&optional (path *testpath*))
+  ;;depends on the lines being joined
+  (let ((joined-lines (path-for-joined-lines path)))
+    (unless (file-exists-p joined-lines)
+      (setf joined-lines (cache-those-joined-lines path))
+      #+nil
+      (error "no connected lines file: ~a" joined-lines))
+    (let ((text (alexandria:read-file-into-string joined-lines))
+	  (intervals (get-cached-directive-intervals path))
+	  (new-cache-path (path-for-no-directives path)))
+      (with-open-file (output new-cache-path :direction :output :if-exists
+			      :overwrite :if-does-not-exist :create)
+	(let ((anti-intervals
+	       (get-anti-intervals intervals
+				   (thing-length text)))
+	      (position 0))
+	  (flet ((advance (&optional (char #\Space))
+		   (incf position)
+		   (write-char char output)))
+	    (dolist (spec anti-intervals)
+	      (destructuring-bind (start len) spec
+		(while (not (= start position))
+		  (advance))
+		(loop :for i :from start :below (+ start len)
+		   :do (advance (aref text i))))))))
+      new-cache-path)))
