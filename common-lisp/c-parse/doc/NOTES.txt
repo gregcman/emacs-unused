@@ -322,3 +322,27 @@ detect whether files have changed?
 created/creating a build system?
 ;;optimization: prefix tree for the shadowroot hash
 ;;debugging information:: print out percentage of completion for caching things. takes a long ass time
+;;parsing with cl-yacc is pretty fast, the lexing is slow?
+;;cache the main lexing?
+;;cache lexing of directives?
+
+info for  (time (keep-parsing (emacsify-path "src/lisp.h")))
+which did not actually parse, because macros not included
+Evaluation took:
+  570.175 seconds of real time
+  528.576210 seconds of total run time (519.404016 user, 9.172194 system)
+  [ Run times consist of 22.061 seconds GC time, and 506.516 seconds non-GC time. ]
+  92.70% CPU
+  11 forms interpreted
+  1,733,562 lambdas converted
+  1,447,052,890,120 processor cycles
+  1 page fault
+  150,144,899,616 bytes consed
+  
+  before it was aborted by a non-local transfer of control.
+
+roughly 5x disk space for lisp.h
+570 ~ 600 seconds ~ 10 minutes
+
+xdisp is around 10 times largest = 100 minutes ~ two hours to parse xdisp.c
+;;but hey, it's much better than manually doing it
