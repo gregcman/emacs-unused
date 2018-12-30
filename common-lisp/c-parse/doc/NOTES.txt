@@ -348,3 +348,6 @@ xdisp is around 10 times largest = 100 minutes ~ two hours to parse xdisp.c
 ;;but hey, it's much better than manually doing it
 ;;symbols vs functions for funcall . fast funcall?
 
+150 Kb / 12.0 Mb -> ~100 times larger? 100 * 10 minutes = 1000 minutes -> 16 hours to convert
+all of emacs to tokens? and whole thing will be around 50 ->12 megabytes?
+https://stackoverflow.com/questions/44592706/how-to-get-a-file-size-and-other-attributes-in-common-lisp

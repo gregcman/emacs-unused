@@ -142,7 +142,7 @@
 	 (only-c-files (remove-if-not 'c-filetype-p files)))
     (mapc fun only-c-files)))
 
-(defun map-c-files (&optional (path *emacs-src-root-path*))
+(defun get-c-files (&optional (path *emacs-src-root-path*))
   (let ((acc nil))
     (uiop:collect-sub*directories
      path
@@ -153,14 +153,14 @@
 				 :fun
 				 (lambda (file)
 				   (push file acc)))))
-    (return-from map-c-files (nreverse acc))))
+    (return-from get-c-files (nreverse acc))))
 
-(defun total-emacs-c-bytes ()
+(defun total-emacs-c-bytes (&optional (path *emacs-src-root-path*))
   (reduce '+
 	  (mapcar (lambda (path)
 		    (osicat-posix:stat-size
 		     (osicat-posix:stat path)))
-		  (map-c-files))))
+		  (get-c-files path))))
 
 (defun find-just-before (item list fun &rest rest &key &allow-other-keys)
   (let ((position (apply 'position-if
@@ -191,7 +191,7 @@
 		       0.25)
 	    name))))
 
-(defun how-big-is-emacs-c-code? ()
-  (destructuring-bind (num name) (get-bytesize (total-emacs-c-bytes))
+(defun how-big-is-emacs-c-code? (&optional (path *emacs-src-root-path*))
+  (destructuring-bind (num name) (get-bytesize (total-emacs-c-bytes path))
     (format t "~%~a ~a~%" num name))
   (values))
