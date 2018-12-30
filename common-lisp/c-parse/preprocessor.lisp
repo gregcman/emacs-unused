@@ -65,7 +65,7 @@
 	(format t "caching joined lines:~%for ~a ~%at ~a~%" file path))
       (with-open-file (output
 		       path
-		       :direction :output :if-exists :overwrite :if-does-not-exist :create)
+		       :direction :output :if-exists :supersede :if-does-not-exist :create)
 	(let ((len (list-length list))
 	      (count 0))
 	  (dolist (line list)
@@ -142,7 +142,7 @@
       (error "no connected lines file: ~a" joined-lines))
     (let ((text (alexandria:read-file-into-string joined-lines))
 	  (cache-path (path-for-cached-directive-intervals path)))
-      (with-open-file (output cache-path :direction :output :if-exists :overwrite :if-does-not-exist :create)
+      (with-open-file (output cache-path :direction :output :if-exists :supersede :if-does-not-exist :create)
 	(get-directives
 	 (lambda (directive start end)
 	   (when *verbose*
@@ -237,7 +237,7 @@
       (when *verbose*
 	(format *standard-output* "~%caching no-directives-file:~%for: ~a~%at: ~a" path new-cache-path))
       (with-open-file (output new-cache-path :direction :output :if-exists
-			      :overwrite :if-does-not-exist :create)
+			      :supersede :if-does-not-exist :create)
 	(let ((anti-intervals
 	       (get-anti-intervals intervals
 				   (thing-length text)))
@@ -261,14 +261,25 @@
 		   :do (advance (aref text position))))))))
       new-cache-path)))
 
+(defun path-for-token-intervals (path)
+  (reroot path :prefix "_token_intervals__"))
 (defun cache-those-lexed-tokens (&optional (path *testpath*))
-  (let ((no-directives-text (alexandria:read-file-into-string (path-for-no-directives path))))
-    (keep-lexing no-directives-text
-		 (lambda (token-type value)
-		   (let ((start (character-section-start value))
-			 (end (character-section-end value)))
-		     (let ((*package* *yacc-package*))
-		       (print (list start (- end start) token-type))))))))
+  (let ((path-for-no-directives (path-for-no-directives path)))
+    (unless (file-exists-p path-for-no-directives)
+      (setf path-for-no-directives (cache-those-no-directives path))
+      #+nil
+      (error "no connected lines file: ~a" joined-lines))
+    (let ((no-directives-text (alexandria:read-file-into-string path-for-no-directives))
+	  (new-cache-path (path-for-token-intervals path)))
+      (with-open-file (output new-cache-path :direction :output :if-exists
+			      :supersede :if-does-not-exist :create)
+	(keep-lexing no-directives-text
+		     (lambda (token-type value)
+		       (let ((start (character-section-start value))
+			     (end (character-section-end value)))
+			 (let ((*package* *yacc-package*))
+			   (princ (list start (- end start) token-type) output)
+			   (write-char #\Newline output)))))))))
 
 (defun keep-lexing (text &optional (fun (lambda (token-type value)
 					  (print (list token-type value)))))
