@@ -203,6 +203,13 @@
   (apply 'nconc
 	 (mapcar 'get-c-files *include-directories*)))
 
+#+nil ;;non-parallel way
 (defun cached-emacs-c-files ()
   (mapcar 'ensure-cached-token-intervals
 	  (emacs-c-source)))
+;;FIXME:: lazy load lparallel kernel with deflazy?
+(setf lparallel:*kernel* (lparallel:make-kernel 4))
+
+(defun submit-emacs-jobs ()
+  (lparallel:pmapc 'ensure-cached-token-intervals
+		   (emacs-c-source)))

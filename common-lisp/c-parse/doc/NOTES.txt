@@ -354,3 +354,7 @@ https://stackoverflow.com/questions/44592706/how-to-get-a-file-size-and-other-at
 
 ;;src/ and lib/ are 10.0 Mb
 ;;have a way to check percentage of completion?
+;;4 cores caching and lexing?
+
+;; 66 * 10 / 4 = 165 minutes
+;; 2.75 hours? 4 hours if 16 hours 1 core 4 cores? what about disk?
