@@ -2,26 +2,28 @@
   (:use :cl :utility))
 (in-package :run-temacs)
 
+(defparameter *shared-lib-path* "/home/imac/install/src/emacs-mirror/emacs-master/src/temacs.so")
 (defun load-temacs-executable ()
-  (cffi:load-foreign-library "/home/imac/install/src/emacs-mirror/emacs-master/src/temacs.so"))
+  (cffi:load-foreign-library *shared-lib-path*))
 
-(cffi:defcfun "main" :void
+(cffi:defcfun "runthetemacs" :int
   (argc :int)
   (argv (:pointer (:pointer :char))))
 
 (defun invoke-temacs-main (&rest strings)
+  (load-temacs-executable)
   (call-with-foreign-strings
-   strings
+   (list* *shared-lib-path* strings)
    (lambda (foreign-strings)
      (call-with-foreign-array-of-foreign-strings
       foreign-strings
       (lambda (argc argv)
-	(main argc argv))))))
+	(runthetemacs argc argv))))))
 
 ;;
 (defun call-with-foreign-array-of-foreign-strings
     (foreign-strings
-     &optional
+     &optionalq
        (fun (lambda (argc argv)
 	      ;;(print argv)
 	      (dotimes (i argc)
