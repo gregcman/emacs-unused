@@ -423,3 +423,7 @@ int runthetemacs (int argc, char **argv){
 
 ;;emacs must do some fancy stuff with the stack... and lisp cannot call emacs...?
 ;;looks like ECL it is then?
+http://vwood.github.io/embedded-ecl.html
+https://common-lisp.net/project/ecl/static/manual/ch01s02.html
+
+emacs C functions must be incrementally lifted through to ECL? Is it possible?
