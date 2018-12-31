@@ -23,7 +23,7 @@
 ;;
 (defun call-with-foreign-array-of-foreign-strings
     (foreign-strings
-     &optionalq
+     &optional
        (fun (lambda (argc argv)
 	      ;;(print argv)
 	      (dotimes (i argc)
