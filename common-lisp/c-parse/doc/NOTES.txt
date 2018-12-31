@@ -396,6 +396,7 @@ https://emacs.stackexchange.com/questions/43894/compiling-emacs-without-dump-une
 env CANNOT_DUMP=yes ./configure --without-all --without-x
 https://lwn.net/Articles/707615/
 https://lwn.net/Articles/615264/
+;;env must be on same line as ./configure command
 
 ;;Is this the way to compile temacs?
 ;;from make -n -> is it possible to compile a shared library?
