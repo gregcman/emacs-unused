@@ -420,3 +420,6 @@ gcc -Demacs  -I. -I. -I../lib -I../lib                      -MMD -MF deps/.d -MP
 int runthetemacs (int argc, char **argv){
   return main(argc, argv);
 }
+
+;;emacs must do some fancy stuff with the stack... and lisp cannot call emacs...?
+;;looks like ECL it is then?
