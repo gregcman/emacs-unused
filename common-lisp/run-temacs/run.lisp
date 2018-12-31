@@ -13,7 +13,7 @@
 (defun invoke-temacs-main (&rest strings)
   (load-temacs-executable)
   (call-with-foreign-strings
-   (list* *shared-lib-path* strings)
+   (list* "./temacs" strings)
    (lambda (foreign-strings)
      (call-with-foreign-array-of-foreign-strings
       foreign-strings
