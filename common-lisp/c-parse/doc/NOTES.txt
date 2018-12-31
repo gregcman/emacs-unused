@@ -358,3 +358,41 @@ https://stackoverflow.com/questions/44592706/how-to-get-a-file-size-and-other-at
 
 ;; 66 * 10 / 4 = 165 minutes
 ;; 2.75 hours? 4 hours if 16 hours 1 core 4 cores? what about disk?
+
+;;FIXME::add finished note to print after "caching" messages
+;;cpp
+;;pycparser
+C the lingua franca
+historical inertia
+an actual C in Common Lisp?
+ECL
+gradually lift functions from emacs into ECL using CFFI and embedding ECL and keeping track of external-declarations and the dependencies
+imitating the c standard library?
+
+- c parser
+- c preprocessor
+- c lexer
+- c standard library
+- CFFI
+- Common LISP
+- ECL
+- pycparser
+- emacs
+
+how hard could it possibly be?
+what is the point?
+to be able to embed emacs inside an open-gl game, as an app, not a component? GPL?
+
+Once all functions are lifted into ECL, ECL can boot emacs directly?
+And SBCL can boot emacs? but it is still using tons of CFFI?
+handing control over to common lisp?
+figure out how temacs and emacs are related? temacs no garbage collection?
+emacs cannot be used as a shared libra ry?
+
+https://emacs.stackexchange.com/questions/43894/compiling-emacs-without-dump-unexec-enabled
+;;compiling emacs without dumping? shared library?
+
+env CANNOT_DUMP=yes
+./configure
+./autogen.sh
+./configure --without-all --without-x
