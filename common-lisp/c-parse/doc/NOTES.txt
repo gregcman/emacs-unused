@@ -395,3 +395,12 @@ https://emacs.stackexchange.com/questions/43894/compiling-emacs-without-dump-une
 ./autogen.sh
 env CANNOT_DUMP=yes ./configure --without-all --without-x
 https://lwn.net/Articles/707615/
+https://lwn.net/Articles/615264/
+
+;;Is this the way to compile temacs?
+;;from make -n -> is it possible to compile a shared library?
+
+gcc -Demacs  -I. -I. -I../lib -I../lib                      -MMD -MF deps/.d -MP        -g3 -O2    \
+  -o temacs   dispnew.o frame.o scroll.o xdisp.o menu.o  window.o charset.o coding.o category.o ccl.o character.o chartab.o bidi.o cm.o term.o terminal.o xfaces.o    emacs.o keyboard.o macros.o keymap.o sysdep.o bignum.o buffer.o filelock.o insdel.o marker.o minibuf.o fileio.o dired.o cmds.o casetab.o casefiddle.o indent.o search.o regex-emacs.o undo.o alloc.o data.o doc.o editfns.o callint.o eval.o floatfns.o fns.o font.o print.o lread.o  syntax.o  bytecode.o process.o gnutls.o callproc.o region-cache.o sound.o timefns.o atimer.o doprnt.o intervals.o textprop.o composite.o xml.o lcms.o   profiler.o decompress.o thread.o systhread.o             terminfo.o lastfile.o      ../lib/libgnu.a                -lrt           -ltinfo         -lpthread -lanl   -lm     -lgmp
+
+;;
