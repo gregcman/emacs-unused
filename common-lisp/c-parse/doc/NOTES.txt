@@ -393,8 +393,10 @@ https://emacs.stackexchange.com/questions/43894/compiling-emacs-without-dump-une
 ;;compiling emacs without dumping? shared library?
 
 ./autogen.sh
-env CANNOT_DUMP=yes CFLAGS="-Wall -Werror -fpic" ./configure --without-all --without-x \
+env CANNOT_DUMP=yes CFLAGS="-fpic" ./configure --without-all --without-x \
 --enable-check-lisp-object-type --disable-silent-rules
+
+;;no -Wall -Werror
 
 see ./configure --help in emacs-src-root
 
