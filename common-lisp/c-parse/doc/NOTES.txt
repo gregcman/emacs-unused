@@ -393,5 +393,5 @@ https://emacs.stackexchange.com/questions/43894/compiling-emacs-without-dump-une
 ;;compiling emacs without dumping? shared library?
 
 ./autogen.sh
-env CANNOT_DUMP=yes
-./configure --without-all --without-x
+env CANNOT_DUMP=yes ./configure --without-all --without-x
+https://lwn.net/Articles/707615/
