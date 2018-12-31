@@ -392,7 +392,6 @@ emacs cannot be used as a shared libra ry?
 https://emacs.stackexchange.com/questions/43894/compiling-emacs-without-dump-unexec-enabled
 ;;compiling emacs without dumping? shared library?
 
-env CANNOT_DUMP=yes
-./configure
 ./autogen.sh
+env CANNOT_DUMP=yes
 ./configure --without-all --without-x
