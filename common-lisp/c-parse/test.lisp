@@ -163,6 +163,11 @@
 		 ;;from man cpp
 		 ;;" -CC " ;;preserve comments
 		 " -P " ;;no line information
+		 " -D'__attribute__(x)='"
+		 " -D'__extension__(x)='"
+		 ;;" -E "
+		 #+nil
+		 "-fdirectives-only " ;; do not expand macros
 		 ;;"-fdebug-cpp" ;;token information?
 		 ))))
     (format nil "cpp ~a ~a ~a -o ~a " (cpp-include-directories-foo) flags infile outfile)))
