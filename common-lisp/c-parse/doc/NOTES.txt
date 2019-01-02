@@ -567,3 +567,5 @@ https://stackoverflow.com/questions/28983726/pycparser-not-working-on-preprocess
 strange GCC compiler builtins after running cpp...
 
 typedef struct __builtin_va_list { } __builtin_va_list;
+
+GNU_compiler_builtins.h ripped partially from:https://github.com/eliben/pycparser/issues/210
