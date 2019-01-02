@@ -142,3 +142,20 @@
 		 (ensure-cached-no-directives
 		  "/home/imac/install/src/emacs-mirror/emacs-master/src/xdisp.c")
 		 ))
+(defparameter *cpp-test-path* "/home/imac/install/src/emacs-mirror/emacs-master/src/bytecode.c")
+(defun reroot-cpp (&optional (path *cpp-test-path*))
+  (reroot path :prefix "_cpp_"))
+
+(defun cpp-it (&optional (path *cpp-test-path*))
+  (uiop:run-program (print (cppbar path))
+		    :output *standard-output* :error-output *standard-output*))
+
+(defun cpp-include-directories-foo ()
+  (stringy (mapcar (lambda (x)
+		     (format nil " -I~a " x))
+		   *include-directories*)))
+
+(defun cppbar (&optional (path *cpp-test-path*))
+  (let ((infile (uiop:unix-namestring path))
+	(outfile (uiop:unix-namestring (reroot-cpp path))))
+    (format nil "cpp ~a -CC -P ~a -o ~a " (cpp-include-directories-foo) infile outfile)))

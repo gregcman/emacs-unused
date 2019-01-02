@@ -508,3 +508,57 @@ ECL is embedded in emacs to facilitate hot-swapping.
 - lesser priority: processes, display code, frames=window managers
 
 figure out a way to run the emacs/test code
+
+Things that have to be done:
+- embed ECL in emacs[? will make interactive development easier, rather than edit-compile cycle]
+- write a C preprocessor that can preprocess the emacs c code and compile without error
+- Common Lisp to python's pycparser and back again and also to C source
+- C AST walker, interpreter, transformer. This is where the "real" porting begins.
+
+- C AST -> refactor to eliminate dependence on C's memory model.
+           Inject hot-swappable function pointer variables,
+	   Try this process out on simpler C code first to see if it works?
+
+
+A custom preprocssor is necessary because the emacs C source is shit all over by directives like #ifdef
+and #define. Generating a C AST after running cpp would lose lots of information.
+
+Maybe using CPP first would be a good idea? just to see if it is possible to generate hot-swappable code.
+Then afterwards gain more information from a custom preprocessor.
+
+Try pre-processing emacs code with cpp, to a temporary file?
+Then establish Common Lisp to pycparser bridge
+Then see if embedding ECL in emacs is possible
+Then try hot-swapping, one function at first, then automatically?
+Then write custom C preprocessor to deal with insane C macro bullshit
+Then try to simplify C preprocessor macros? Or maybe automatic macro-detection
+can come later with pattern matching?
+
+Try preprocessing emacs code with cpp to a temp file in the shadowroot. See if it compiles correctly
+establish common lisp to pycparser bridge
+ - json interface
+ - command line unavoiable?
+try to embed ECL in emacs
+try to hot-swap a function via ECL
+
+test common lisp to pycparser bridge with various examples:
+ - opengl tutorials
+ - C function tutorials
+ - have lots of test cases?
+
+later: to reduce complexity, implement a custom C preprocessor. But beforehand, just see if things
+are possible to get working.
+Of utmost importance is the Common Lisp to pycparser bridge. And the ability to convert from the AST to Common Lisp interpretable format.
+
+- automate the cpp preprocessor with uiop:run-command and the shadowroot. See if Emacs compile correctly
+  after using cpp on the files. 
+- establish a Common Lisp to pycparser bridge. Likely by invoking pycparser to dump to a json file,
+  reading the json file into common lisp, and reducing memory usage with objects?
+  Then try to dump the json file back to pycparser.
+- run many, many test cases with the Common Lisp to pycparser bridge. Experiment and see what is possible
+  to emulate via common lisp, or by mingling lisp and CFFI.
+- embed ECL in emacs and test hot-swapping capabilities.
+- use pycparser to refactor all the emacs functions to allow for hot-swapping? with ECL?
+- write a custom C preprocessor to reduce the complexity of C preprocessor macros.
+
+- See what sorts of things can be correctly run in the emacs's source code. 
