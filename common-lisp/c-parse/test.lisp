@@ -157,5 +157,12 @@
 
 (defun cppbar (&optional (path *cpp-test-path*))
   (let ((infile (uiop:unix-namestring path))
-	(outfile (uiop:unix-namestring (reroot-cpp path))))
-    (format nil "cpp ~a -CC -P ~a -o ~a " (cpp-include-directories-foo) infile outfile)))
+	(outfile (uiop:unix-namestring (reroot-cpp path)))
+	(flags (stringy
+		(list
+		 ;;from man cpp
+		 ;;" -CC " ;;preserve comments
+		 " -P " ;;no line information
+		 ;;"-fdebug-cpp" ;;token information?
+		 ))))
+    (format nil "cpp ~a ~a ~a -o ~a " (cpp-include-directories-foo) flags infile outfile)))
