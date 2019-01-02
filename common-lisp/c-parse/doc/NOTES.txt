@@ -562,3 +562,8 @@ Of utmost importance is the Common Lisp to pycparser bridge. And the ability to 
 - write a custom C preprocessor to reduce the complexity of C preprocessor macros.
 
 - See what sorts of things can be correctly run in the emacs's source code. 
+
+https://stackoverflow.com/questions/28983726/pycparser-not-working-on-preprocessed-code
+strange GCC compiler builtins after running cpp...
+
+typedef struct __builtin_va_list { } __builtin_va_list;

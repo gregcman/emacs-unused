@@ -155,6 +155,10 @@
 		     (format nil " -I~a " x))
 		   *include-directories*)))
 
+(defparameter *gnu-compiler-builtins-header* 
+  (merge-pathnames "test/GNU_compiler_builtins.h" *path*))
+(defparameter *gnu-compiler-builtins-header-include-flag*
+  (format nil " -include ~a " (uiop:unix-namestring *gnu-compiler-builtins-header*)))
 (defun cppbar (&optional (path *cpp-test-path*))
   (let ((infile (uiop:unix-namestring path))
 	(outfile (uiop:unix-namestring (reroot-cpp path)))
@@ -163,8 +167,7 @@
 		 ;;from man cpp
 		 ;;" -CC " ;;preserve comments
 		 " -P " ;;no line information
-		 " -D'__attribute__(x)='"
-		 " -D'__extension__(x)='"
+		 *gnu-compiler-builtins-header-include-flag*
 		 ;;" -E "
 		 #+nil
 		 "-fdirectives-only " ;; do not expand macros
