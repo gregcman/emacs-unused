@@ -189,9 +189,6 @@
 	    ))
    (file-lines-no-whitespace-lines
     (alexandria:read-file-into-string *pycparser-c-ast-cfg*))))
-(defun floobar ()
-  (let ((text (deflazy:getfnc 'pycparser-c-ast-cfg)))
-    text))
 
 (defun compile-lex-def-to-esrap-liquid (&optional (rule-string "[a-zA-Z]*yolo"))
   (lex-rule-dump
@@ -214,7 +211,7 @@
 (define-c-parse-rule pycparser-c-ast-cfg-params ()
   (remove
    nil
-   (postimes
+   (times
     (||
      (list-v pycparser-cfg-name
 	     (list-length (times #\*)))
@@ -222,9 +219,14 @@
 (deflazy pycparser-cfg-ast-nodes ()
   (eval (wot89))
   (values))
-(defun huh70 (&optional (string "Union: [name, decls**]"))
+(defun parse-pycparser-c-ast-def (&optional (string "Union: [name, decls**]"))
   (getfnc 'pycparser-cfg-ast-nodes)
   (parse-with-garbage 'pycparser-cfg string))
+
+(defun floobar ()
+  (let ((text (deflazy:getfnc 'pycparser-c-ast-cfg)))
+    (mapcar 'parse-pycparser-c-ast-def
+	    text)))
 ;;ripped from pycparser-master/pycparser/_c_ast.cfg
 ;;#   <name>*     - a child node
 ;;#   <name>**    - a sequence of child nodes
