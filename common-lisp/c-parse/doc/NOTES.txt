@@ -491,3 +491,20 @@ ECL is embedded in emacs to facilitate hot-swapping.
     cases of low-hanging fruit where transpiling is trivial. 
   - The AST is used to determine what functions are missing.
 
+- Possible problems emulating C and the standard library:
+  - different math definitions: unsigned overflow, bit shifting, bit manipulation?
+  - C's memory model problems: bytes, malloc, unions, struct alignment. Allocating memory to contain objects
+    based on type size
+  - The ISO C standard is 500 pages long, what if it turns out that emacs cannot run without implementing
+    a lot?
+
+- high priority milestones:
+  - functioning elisp interpreter
+  - buffers
+  - multibyte strings
+  - characters
+  - regular expressions?
+
+- lesser priority: processes, display code, frames=window managers
+
+figure out a way to run the emacs/test code
