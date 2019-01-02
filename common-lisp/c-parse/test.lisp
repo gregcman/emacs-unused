@@ -175,3 +175,65 @@
 		 ;;"-fdebug-cpp" ;;token information?
 		 ))))
     (format nil "cpp ~a ~a ~a -o ~a " (cpp-include-directories-foo) flags infile outfile)))
+
+(defparameter *pycparser-src-path* "/home/imac/install/src/pycparser-master/")
+(defparameter *pycparser-c-ast-cfg*
+  (merge-pathnames "pycparser/_c_ast.cfg" *pycparser-src-path*))
+
+(deflazy:deflazy pycparser-c-ast-cfg ()
+  (remove-if
+   (lambda (x)
+     ;;;comment lines start with #
+     (char= (aref x 0)
+	    #\#
+	    ))
+   (file-lines-no-whitespace-lines
+    (alexandria:read-file-into-string *pycparser-c-ast-cfg*))))
+(defun floobar ()
+  (let ((text (deflazy:getfnc 'pycparser-c-ast-cfg)))
+    text))
+
+(defparameter *json-to-lisp-names*
+  (make-hash-table :test 'equal))
+;;;;lispify and delispify are inverses
+(defun lispify (string)
+  ;;;prefix all uppercase letters with a dash, and make lowercase
+  (let ((acc nil))
+    (dotimes (index (length string))
+      (let ((char (aref string index)))
+	(if (upper-case-p char)
+	    (progn
+	      (push #\- acc)
+	      (push (char-downcase char) acc))
+	    (push char acc))))
+    (string-upcase (stringy (nreverse acc)))))
+(defun delispify (string)
+  (let ((acc nil)
+	(index 0)
+	(len (length string)))
+    (while (> len index)
+      (let ((char (aref string index)))
+	(if (char= #\- char)
+	    (progn
+	      (push (char-upcase (aref string (+ 1 index))) acc)
+	      (incf index 2))
+	    (progn (push (char-downcase char) acc)
+		   (incf index 1)))))
+    (stringy (nreverse acc))))
+
+(defparameter *json-name-package* (or (find-package :json-name)
+				      (make-package :json-name)))
+(use-package *json-name-package*)
+(defun make-and-export-sym (string package)
+  (let ((sym (intern (lispify string)
+		     package)))
+    (export
+     sym
+     package)
+    sym))
+(defun json-to-lisp-symbol (string &optional (hash *json-to-lisp-names*)
+				     (package *json-name-package*))
+  (symbol-macrolet ((place (gethash string hash)))
+    (or place
+        (setf place
+	      (make-and-export-sym string package)))))
