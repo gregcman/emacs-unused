@@ -193,8 +193,6 @@
   (let ((text (deflazy:getfnc 'pycparser-c-ast-cfg)))
     text))
 
-(defparameter *json-to-lisp-names*
-  (make-hash-table :test 'equal))
 ;;;;lispify and delispify are inverses
 (defun lispify (string)
   ;;;prefix all uppercase letters with a dash, and make lowercase
@@ -221,19 +219,31 @@
 		   (incf index 1)))))
     (stringy (nreverse acc))))
 
+(progn
+  (defparameter *json-to-lisp-names*
+    (make-hash-table :test 'equal))
+  (defparameter *lisp-names-to-json*
+    (make-hash-table :test 'eq)))
 (defparameter *json-name-package* (or (find-package :json-name)
 				      (make-package :json-name)))
 (use-package *json-name-package*)
 (defun make-and-export-sym (string package)
-  (let ((sym (intern (lispify string)
+  (let ((sym (intern string
 		     package)))
     (export
      sym
      package)
     sym))
 (defun json-to-lisp-symbol (string &optional (hash *json-to-lisp-names*)
-				     (package *json-name-package*))
+				     (package *json-name-package*)
+				     (otherhash *lisp-names-to-json*))
   (symbol-macrolet ((place (gethash string hash)))
     (or place
-        (setf place
-	      (make-and-export-sym string package)))))
+	(let* ((newstr (lispify string))
+	       (sym (make-and-export-sym newstr package)))
+	  (setf place sym)
+	  (setf (gethash sym otherhash) string)
+	  sym))))
+(defun lisp-symbol-to-json (sym &optional (otherhash *lisp-names-to-json*))
+  (or (gethash sym otherhash)
+      (error "no associated json name: ~a" sym)))
