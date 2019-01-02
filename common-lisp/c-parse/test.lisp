@@ -230,11 +230,13 @@
 
 (defun dump-defstruct-from-pycparser-c-ast-def (def)
   (destructuring-bind (name &rest params) def
-    `(struct-to-clos:struct->class
-      (defstruct ,(json-to-lisp-symbol name)
-	,@
-	(mapcar 'json-to-lisp-symbol
-		(mapcar 'first params))))))
+    (let ((name (json-to-lisp-symbol name)))
+      `(struct-to-clos:struct->class
+	(defstruct (,name (:conc-name ,(utility:symbolicate2 (list (string name) ".")
+							     (symbol-package name))))
+	  ,@
+	  (mapcar 'json-to-lisp-symbol
+		  (mapcar 'first params)))))))
 
 (defun gen-pycparser-node-objets ()
   (let ((data (get-parsed-c-ast-defs)))
