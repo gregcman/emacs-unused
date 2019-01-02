@@ -193,6 +193,43 @@
   (let ((text (deflazy:getfnc 'pycparser-c-ast-cfg)))
     text))
 
+(defun compile-lex-def-to-esrap-liquid (&optional (rule-string "[a-zA-Z]*yolo"))
+  (lex-rule-dump
+   (parse-with-garbage 'lex-rule-start rule-string)))
+
+(defun wot89 ()
+  `(progn
+     (define-c-parse-rule pycparser-cfg-name ()
+       (stringy ,(compile-lex-def-to-esrap-liquid "[a-zA-Z_]+")))))
+(define-c-parse-rule pycparser-cfg ()
+  (let ((name (v pycparser-cfg-name)))
+    (list*
+     name
+     (progn-v
+      #\:
+      #\Space
+      (progm #\[
+	     pycparser-c-ast-cfg-params
+	     #\])))))
+(define-c-parse-rule pycparser-c-ast-cfg-params ()
+  (remove
+   nil
+   (postimes
+    (||
+     (list-v pycparser-cfg-name
+	     (list-length (times #\*)))
+     (progn (v ", ") nil)))))
+(deflazy pycparser-cfg-ast-nodes ()
+  (eval (wot89))
+  (values))
+(defun huh70 (&optional (string "Union: [name, decls**]"))
+  (getfnc 'pycparser-cfg-ast-nodes)
+  (parse-with-garbage 'pycparser-cfg string))
+;;ripped from pycparser-master/pycparser/_c_ast.cfg
+;;#   <name>*     - a child node
+;;#   <name>**    - a sequence of child nodes
+;;#   <name>      - an attribute
+
 ;;;;lispify and delispify are inverses
 (defun lispify (string)
   ;;;prefix all uppercase letters with a dash, and make lowercase
