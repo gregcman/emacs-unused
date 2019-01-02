@@ -230,10 +230,11 @@
 
 (defun dump-defstruct-from-pycparser-c-ast-def (def)
   (destructuring-bind (name &rest params) def
-    (let ((name (json-to-lisp-symbol name)))
+    (let ((name (json-to-lisp-symbol name))
+	  (conc-name (utility:symbolicate2 (list (string name) ".")
+					   (symbol-package name))))
       `(struct-to-clos:struct->class
-	(defstruct (,name (:conc-name ,(utility:symbolicate2 (list (string name) ".")
-							     (symbol-package name))))
+	(defstruct (,name (:conc-name ,conc-name))
 	  ,@
 	  (mapcar 'json-to-lisp-symbol
 		  (mapcar 'first params)))))))
@@ -242,6 +243,8 @@
   (let ((data (get-parsed-c-ast-defs)))
     `(progn
        ,@(mapcar 'dump-defstruct-from-pycparser-c-ast-def data))))
+
+;;(defun eval-pycparser-node-objects )
 
 ;;ripped from pycparser-master/pycparser/_c_ast.cfg
 ;;#   <name>*     - a child node
