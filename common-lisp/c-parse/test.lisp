@@ -168,6 +168,7 @@
 		 ;;" -CC " ;;preserve comments
 		 " -P " ;;no line information
 		 *gnu-compiler-builtins-header-include-flag*
+		 "-std=c99"
 		 ;;" -E "
 		 #+nil
 		 "-fdirectives-only " ;; do not expand macros
