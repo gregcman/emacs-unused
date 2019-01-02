@@ -223,10 +223,24 @@
   (getfnc 'pycparser-cfg-ast-nodes)
   (parse-with-garbage 'pycparser-cfg string))
 
-(defun floobar ()
+(defun get-parsed-c-ast-defs ()
   (let ((text (deflazy:getfnc 'pycparser-c-ast-cfg)))
     (mapcar 'parse-pycparser-c-ast-def
 	    text)))
+
+(defun dump-defstruct-from-pycparser-c-ast-def (def)
+  (destructuring-bind (name &rest params) def
+    `(struct-to-clos:struct->class
+      (defstruct ,(json-to-lisp-symbol name)
+	,@
+	(mapcar 'json-to-lisp-symbol
+		(mapcar 'first params))))))
+
+(defun gen-pycparser-node-objets ()
+  (let ((data (get-parsed-c-ast-defs)))
+    `(progn
+       ,@(mapcar 'dump-defstruct-from-pycparser-c-ast-def data))))
+
 ;;ripped from pycparser-master/pycparser/_c_ast.cfg
 ;;#   <name>*     - a child node
 ;;#   <name>**    - a sequence of child nodes
@@ -264,8 +278,7 @@
   (defparameter *lisp-names-to-json*
     (make-hash-table :test 'eq)))
 (defparameter *json-name-package* (or (find-package :json-name)
-				      (make-package :json-name)))
-(use-package *json-name-package*)
+				      (make-package :json-name :use '(:cl))))
 (defun make-and-export-sym (string package)
   (let ((sym (intern string
 		     package)))
