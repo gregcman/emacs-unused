@@ -427,3 +427,67 @@ http://vwood.github.io/embedded-ecl.html
 https://common-lisp.net/project/ecl/static/manual/ch01s02.html
 
 emacs C functions must be incrementally lifted through to ECL? Is it possible?
+
+The emacs C source is so complicated and convoluted that even looking at it will drive me insane.
+the only way forward seems to lie in a custom C preprocessor?
+
+- work with the Remacs people?
+
+- goals: make an emacs with hot-swappable code via ECL
+- lift emacs C functions into a lisp-readable form via pycparser + custom macro expander
+- see how far hot swappable C functions, pycparser + custom macro preprocessor can take us.
+
+- So much in life is a historical accident, a clusterfuck. Not intelligent design. Perhaps I take for
+granted so much of Common Lisp that is intelligent design that I forget the world is a huge clusterfuck.
+Like in evolution, the insects colonize land before more complex organisms.
+Perhaps such is the case in the "early" days of computing. qwerty, [shinmera - michaelsoft - mario kart
+8 stream]? android, apple, IBM, google. personal computers, mobile, video games, editors. So much is
+historical accidents blowing up because the "terrain" is not yet explored.
+
+mencius moldbug -> adherence to a lie is a an indication of loyalty, not adherence to truth, since
+anyone can believe truth. emacs is a lisp machine? emacs is a religion? perhaps emacs's unhackability
+is part of it's appeal.
+
+The dream: an editor inside a game, homoiconic, multiplayer safe virtual reality. Why can't emacs
+be embedded inside a game? It was never built for that purpose. As long as SLIME and emacs exists,
+other common lisp editors will not recieve love. which means there will be no game-editor in common lisp
+and the advantage of common lisp in a game diminishes.
+
+Emacs is "free" and "open source" but what does that mean? It's such a huge clusterfuck and obfuscated
+that it might as well be a binary blob.
+
+As long as SLIME + emacs exists, common lisp editors will not survive. Because common lisp editors will
+not survive, there can be no homoiconic editor. Because there is no homoiconic editor, the advantage
+of using common lisp for games is moot.
+
+Understanding the C code of Emacs directly will result in madness.
+Porting the C code of Emacs directly will result in madness and failure.
+Diverging from emacs development will not work.
+
+So what is the solution?
+
+Emacs stays exactly the way the main branch is. But all features are turned off and dumping is disabled.
+A custom C parser and implementation can provide information on references of macros, functions, etc..
+- information about DEFUNS, macros
+A C source-to-source compiler rewrites all the Emacs C code to facilitate hot-swapping.
+ECL is embedded[is it possible?] to facilitate hot-swapping.
+
+Emacs source is NEVER directly observed, ported, or modified. This can only end in failure, and madness.
+Just look at Guile-emacs, or remacs.
+There are thousands of people interested in a complexity reduction for emacs.
+A custom C preprocessor and parser?
+ISO C is 500 pages?
+
+Emacs is never directly modified. Mainline Emacs development is god.
+The emacs source code is automatically rewritten to facilitate hot swapping via function pointer variables.
+ECL is embedded in emacs to facilitate hot-swapping.
+
+- Emacs is never directly observed or modified.
+- Emacs C source code is automatically rewritten to facilitate hot swapping via function pointer variables.
+- ECL is embedded in emacs to facilitate hot-swapping via CFFI
+- Emacs C source is parsed into an AST that can be dumped, compiled, or hot-swapped back into emacs.
+  - If the AST can be parsed and dumped back into emacs without error, the parse is correct.
+  - When the parse is correct, the AST can be used to transpile to a language of choice. There seems to be
+    cases of low-hanging fruit where transpiling is trivial. 
+  - The AST is used to determine what functions are missing.
+
